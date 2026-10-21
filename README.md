@@ -16,11 +16,17 @@ flowchart TD
     Log["BrowseCraftLog<br/>日志"]
 
     App --> Runtime
+    App --> Core
+    App --> Domain
     App --> APIKit
+    App --> Log
     Runtime --> Core
     Runtime --> Domain
+    Runtime --> Log
     Domain --> Core
-    App --> Log
+    Domain --> Log
+    Core --> Log
+    APIKit --> Log
 ```
 
 App 内部分层，依赖只指向内层：
@@ -32,13 +38,20 @@ flowchart TD
     Infra["Infrastructure<br/>存储与网络适配"]
     Application["Application<br/>用例与端口"]
     Domain["Domain<br/>实体"]
+    Shared["Shared<br/>日志、诊断、广告、通用图片视图"]
 
     AppL --> Features
     AppL --> Infra
     Features --> Application
     Infra --> Application
     Application --> Domain
+    AppL --> Shared
+    Features --> Shared
+    Infra --> Shared
+    Application --> Shared
 ```
+
+`Shared` 不得引用 `App`、`Features`、`Application` 与 `Infrastructure`（`BCA-ARCH-004`）。
 
 ## 目录
 

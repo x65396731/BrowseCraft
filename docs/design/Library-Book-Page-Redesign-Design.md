@@ -64,7 +64,7 @@
 
 | 顺序 | 块 | 内容 | 什么时候出现 |
 | --- | --- | --- | --- |
-| 1 | 顶部 | 眉行「书 书籍 · 主机名」（`book.closed.fill` 取书籍类型色；整站有声时「有声书 · 主机名」、图标换 `headphones`）+ 大标题 = 来源名 + 右侧搜索 / 账号圆按钮 | 一直；两个按钮各自按规则有无 |
+| 1 | 顶部 | 眉行「书 书籍 · 主机名」（`book.closed.fill` 取书籍类型色；整站有声时「有声书 · 主机名」、图标换 `headphones`）+ 大标题 = 来源名 + 右侧搜索 / 账号 /「…」圆按钮（「…」是问题报告入口，与视频库同一个 `ProblemReportMenuButton`，见 [Problem-Report-Design.md](Problem-Report-Design.md) 第三节，`BCA-UI-006`） | 一直；搜索与账号各自按规则有无，「…」只在有问题报告提交器且已选中来源时 |
 | 2 | 分类条 | 贴顶胶囊芯片，选中段书籍类型色底 | 来源有两个以上列表页时 |
 | 3 | 上次读到 | 书籍类型色的深色瓷砖：封面 72×100、「上次读到」/「上次听到」、书名、章节名、全书进度条、时刻；点了直接开阅读器 / 播放器 | 当前来源有读书历史时 |
 | 4 | 分类出错横幅 | 警示色淡底一行 | 有内容但当前分类报错时 |
@@ -91,7 +91,7 @@
 
 - 文字有三行的位置，长书名能写全两行，最新章和读到哪各自一行不互相挤；这是和封面墙的第一个区别。
 - 读到哪放在文字里而不是压在封面上：封面只有 60pt 宽，压一个胶囊会盖掉半张图。
-- iPad 与横屏：宽过约 740pt 时变两列（`.adaptive(minimum: 340)`、列距 24、页边距 40），行构造不变。搜索结果复用同一行，整站有声的耳机与「听」措辞照样生效（搜索页不接阅读器，长按没有「继续读」）。
+- iPad 与横屏：列用 `.adaptive(minimum: 340)`、列距 24，内容宽放得下两个 340 时自动变两列，行构造不变；页边距在 regular 尺寸类（`horizontalSizeClass == .regular`）是 40、否则 20。搜索结果复用同一行，整站有声的耳机与「听」措辞照样生效（搜索页不接阅读器，长按没有「继续读」）。
 
 ## 六、「上次读到」瓷砖
 
@@ -113,16 +113,16 @@
 | --- | --- |
 | 首屏加载 | 骨架与书脊行同形：左 60×80 色块 + 右三条（长、中、短），呼吸动画；`LibrarySkeletonGridView` 加 `.bookList` 形态，7 行 |
 | 取回来是空的 | `LibraryPlaceholderView`：插画 `EmptyStateLibraryBook`（看板娘坐在三本淡色精装书上、膝上翻开一本空白的书；文字书与有声书共用）+「还没有内容」+ 一句说明 +「下拉可重新载入」 |
-| 第 1 页失败 | 同上，插画 `EmptyStateOffline` +「载入失败」+ 错误原因 +「下拉重试」 |
-| 有内容但本分类报错 | 警示色淡底横幅，在列表上方（共享 `LibraryStateBanner` 的纯文字失败态，原 `LibraryTabErrorBanner`） |
+| 第 1 页失败 | 同上，插画 `EmptyStateOffline` +「载入失败」+ 错误原因 +「下拉重试」；下面一行「报告问题」小字链接（`ProblemReportLink`），打开同一个报告面板并带上失败原因 |
+| 有内容但本分类报错 | 警示色淡底横幅，在列表上方（共享 `LibraryStateBanner` 的纯文字失败态，原 `LibraryTabErrorBanner`）；说明句下多一行「报告问题」小字链接 |
 | 切换来源 | 旧列表留在屏上盖页面底 82% + 居中状态卡（现有） |
-| 翻页中 / 还有下一页 / 已到底 | 分页脚三条文案（现有） |
+| 翻页中 / 还有下一页 / 已到底 / 翻页失败 | 分页脚文案与视频库同一个 `LibraryPaginationFooterView`；翻页失败时原因下一行「报告问题」小字链接 |
 | 翻页失败 | 分页脚那一行换警示色「第 N 页 · 加载失败，再滑到底重试」，下面一行小字写 `RuleExecutionErrorClassifier.userMessage` 的原因；不弹框、不出横幅；已加载的内容照留；再次触底就重试（2026-10-10 裁定） |
 | 下拉刷新 | 系统下拉控件；刷新中列表不换骨架 |
 | 来源需要登录 | 账号按钮空心；列表照规则给的结果显示（现状） |
 | 深色模式 | 页面底、分隔线、芯片随系统；瓷砖是固定深色取值，两种模式下一样；类型色切到 #5CC8B0 |
 
-空状态插画与其余插画同规格（同一个看板娘、即梦出图、透明底、540px 高、按 180pt 显示，画面内不含文字）；即梦设定与提示词在画布「书籍库空状态插画 · 即梦设定」画板，已出图入库（构思 A「坐在书堆上翻开空白的书」）。
+空状态插画与其余插画同规格（同一个看板娘、即梦出图、透明底、540px 高、按 180pt 显示，画面内不含文字）；即梦设定与提示词在画布「书籍库空状态插画 · 即梦设定」画板，采用构思 A「坐在书堆上翻开空白的书」。
 
 ## 八、每个元素的数据来源与缺省
 
@@ -177,9 +177,7 @@
 
 ## 十一、裁定
 
-2026-10-09 用户裁定十项全取 A：单列书脊行；封面 60×80 带书脊线；来源级判有声（耳机 + 眉行 +「听」措辞，混合站不标）；读到哪放文字第三行；加「上次读到」瓷砖含全书进度条；
-作者本轮不留位；只在已收藏时行尾小爱心、动作走长按；长按加「继续读 / 继续听」；本轮出空状态插画 `EmptyStateLibraryBook`；骨架与书脊行同形。
-画稿时改了一处措辞并记入设计文档：「读到 ·」与瓷砖第三行写章节名原文一行截断，不缩成「第 N 章」。
+裁决叙事见 [status-log.md](../history/status-log.md)。
 
 ## 十二、不改的东西
 
@@ -189,8 +187,7 @@
 
 ## 十三、实现位置
 
-- `BrowseCraft/Features/Library/Book/Site/BookLibraryRowView.swift`：新建书脊行（封面 + 书脊线 + 耳机 + 三行文字 + 行尾爱心 + 长按菜单）；旧卡片 `BookLibraryCardView.swift` 删除。
-- `BrowseCraft/Shared/UI/LibraryTitleColor.swift`：最后一个引用随旧卡片消失，一并删。
+- `BrowseCraft/Features/Library/Book/Site/BookLibraryRowView.swift`：书脊行（封面 + 书脊线 + 耳机 + 三行文字 + 行尾爱心 + 长按菜单）；没有单独的书籍卡片视图。
 - `BrowseCraft/Features/Library/Components/LibraryContentView.swift`：书籍分支换成单列 `LazyVStack` + 分隔线，给行传读到哪、是否有声与「继续读」回调。
 - `BrowseCraft/Features/Library/LibraryView.swift`：「上次读到」瓷砖的书籍分支与用历史开 `BookReaderView` 的导航；眉行措辞；骨架与空态按类型选。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift` 与 `LibraryPersistenceCoordinator`：读书历史与进度的只读查询、最近一条与按书的字典、刷新时机；`LibraryFeatureFactory` 接 GRDB 仓储。
@@ -198,9 +195,8 @@
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：加 `.bookList` 形态。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 加可选的标题文案，「上次听到」由调用方传。
 - 三份 `Localizable.strings`：「最新 · %@」（`library_book_latest`）「读到 · %@」（`library_book_read_to`）「听到 · %@」（`library_book_listened_to`）「上次听到」（`history_continue_listened`）「继续听 · %@」（`library_card_continue_listening`）「有声书」（`library_kind_audiobook`）；其余沿用。
-- 资产：`EmptyStateLibraryBook`（已入库并登记预算）。
+- 资产：`EmptyStateLibraryBook`（登记在资产预算表）。
 
 ## 十四、真机验收清单
 
-- 待走：骨架、空状态插画、整站有声（眉行、耳机、「听到 / 上次听到 / 继续听」措辞）、失败态。
 - 深色模式整页看一遍。

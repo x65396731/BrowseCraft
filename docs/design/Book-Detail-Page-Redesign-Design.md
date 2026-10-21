@@ -35,7 +35,7 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 | 章数 | `manifest.items.count` | 都有 | 头部「N 章」与分区头 |
 | 状态 / 更新时间 / 标签 | 合同没有槽位 | 没有 | 不显示 |
 
-**章节**（`BookPublicationItem`）只有 `title`、`chapterURL`、`kind`（text / audio）；`order` 与 `group` 规则不生成；`order` 在 Runtime `BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时丢弃，`group` 由 Runtime 映成 `SourceChapter.subtitle`、到 `BookPublicationAssembler` 才丢；没有时长、付费、限制标记。目录顺序就是规则抓到的顺序
+**章节**（`BookPublicationItem`）只有 `title`、`chapterURL`、`kind`（text / audio）；`order` 与 `group` 规则不生成；`order` 在 Runtime `BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时丢弃（本页不接 `order`：Core 会读，Runtime 不带、也不按它排），`group` 由 Runtime 映成 `SourceChapter.subtitle`、到 `BookPublicationAssembler` 才丢；没有时长、付费、限制标记。目录顺序就是规则抓到的顺序
 （笔趣阁页顶「最新章节」块排在前面、小說狂人夹着公告行，都是规则与 Runtime 的事，页面照列）。
 
 **章节标题的形状**：小说站几乎全是「编号 + 章名」，纯编号目录几乎没有（小說狂人 683 条解出 679、novels 1531 全解出、Royal Road 106/109）；解不出的是公告、Epilogue、「作品相關」。
@@ -61,7 +61,7 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 
 ## 四、页面结构
 
-页面跟随系统深浅，底色取页面底，隐藏系统导航栏与底栏；返回与收藏两个 40pt 圆按钮固定在安全区顶（与漫画详情同）。从上到下：
+页面跟随系统深浅，底色取页面底，隐藏系统导航栏与底栏；返回、「…」与收藏三个 40pt 圆按钮固定在安全区顶（与漫画详情同，共享 `DetailTopButtons`；「…」是问题报告入口，见 [Problem-Report-Design.md](Problem-Report-Design.md) 第三节，`BCA-UI-006`，只在有问题报告提交器时出现）。从上到下：
 
 | 顺序 | 块 | 内容 | 什么时候出现 |
 | --- | --- | --- | --- |
@@ -84,11 +84,12 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 | 来源 · 分类 | `source.name` + 当前分类名，`caption` 次级色 | 一直 |
 | 章数 | 「1,297 章」`caption` 次级色；有声书「耳机 有声书 · 17 章」类型色 | 章节取回来后；取回前骨架条 |
 | 右上 · 收藏 | `TabFavorites` / `TabFavoritesOutline` 20pt 在 40pt 卡片色圆里，已收藏实心类型色 | 点了即收藏 / 取消 |
+| 右上 · 「…」 | 收藏左侧同规格 40pt 卡片色圆（`ProblemReportMenuButton`）；菜单一项「报告这一页的问题」 | 打开问题报告面板（[Problem-Report-Design.md](Problem-Report-Design.md)） |
 
 **继续卡片**（有续读位置时；共享 `DetailContinueCard`，与漫画详情同一取值）：卡片底、圆角 16、高 88，左缘 4pt 类型色竖条；小封面 56×72 圆角 8 带书脊线（有声书上压耳机小圆）；三行：「继续阅读」/「继续收听」`caption` semibold 类型色 → 章名 `headline` 一行 →
 文字书「全书 12% · 昨天 21:40」/ 有声书「12:34 · 昨天 21:40」`caption` 次级色；底边 3pt 进度条写 `totalProgression`（有声书没有就不画）；行尾 36pt 类型色圆底图标。点 = 不带章节开阅读器。
 
-- 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。时刻写法与库页「上次读到」瓷砖、漫画详情同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期。
+- 章名与时刻从读书历史来（`chapterTitle`、`visitedAt`），历史没有时退回 Locator `href` 对法。时刻写法与库页「上次读到」瓷砖、漫画详情同一套 `LibraryHistoryTimeText`：今天 / 昨天带时刻，更早只写日期（跨年带年份）。
 - 「全书 12%」就是 `totalProgression`，小于 1% 写「刚开始」。
 - 有声书的「12:34」解 `locatorJSON` 里 `locations.fragments` 的 `t=秒`。
 
@@ -118,7 +119,7 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 | --- | --- |
 | 进页加载中 | 头部先用列表的书名与封面画好，章数行、继续卡片位、分区头与 8 行目录都是骨架 |
 | 从阅读器 / 播放器回来 | 不重取详情，只重读续读位置与读书历史 |
-| 取详情失败 | 头部照留；继续卡片位换成警示色淡底横幅（共享 `LibraryStateBanner` 失败态）：三角图标 + 错误原因 + 右侧「重试」警示色实心；目录不出 |
+| 取详情失败 | 头部照留；继续卡片位换成警示色淡底横幅（共享 `LibraryStateBanner` 失败态）：三角图标 + 错误原因 + 右侧「重试」警示色实心；说明句下一行「报告问题」小字链接（打开报告面板并带上失败原因，与「…」同一个面板）；目录不出 |
 | 来源需要登录 | 来源有登录页时横幅在「重试」左边多一个「登录」警示色描边（打开来源登录页；与搜索页同一个失败态横幅，与漫画详情的受限态横幅同一个组件） |
 | 有详情但没有章节 | 分区头「章节 · 0 章」下一张卡片「这本书还没有章节」；没有开始按钮 |
 | 公告行 | 照列、没有编号柱，点了照样进阅读器 |
@@ -153,14 +154,12 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 | 分隔线 | 系统 `separator` |
 | 警示 | `warning` / `warningFill`：失败 / 登录横幅，横幅上的按钮也只用 `warning`（实心 / 描边），不用类型色 |
 | 圆角 | 封面 8、继续卡片 16、目录卡片 16、横幅 16、芯片与开始按钮胶囊 |
-| 尺寸 | 页边距 20；固定按钮圆 40（热区 44，卡片底 + 黑 8% 轻阴影，爱心 20；共享 `DetailTopButtons`）；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 56×72、竖条 4、进度条 3；开始按钮高 50；分区头高 44；芯片高 36（`LibraryChipBar`）；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
+| 尺寸 | 页边距 20；固定按钮圆 40（热区 44，卡片底 + 黑 8% 轻阴影，爱心 20；共享 `DetailTopButtons`）；头部封面 72×96、与文字间距 14；继续卡片高 88、封面 56×72、竖条 4、进度条 3；开始按钮高 50；分区头最小高 44；芯片高 36（`LibraryChipBar`）；目录行最小高 48、编号柱宽 48、上次读到竖条 3 |
 | 字号 | 书名 `title2` bold；作者 `subheadline`；来源与章数 `caption`；继续卡片标签 `caption` semibold、小字 `caption`、章名 `headline`；分区头 `headline`（共享 `DetailChapterHeader`）；编号柱 `subheadline` monospacedDigit；章名 `body`；简介 `subheadline` |
 
 ## 十、裁定
 
-2026-10-09 用户裁定十三项全取 A：页面底色头部；继续卡片（章名 + 全书 % + 进度条 + 时刻）；续读章先按读书历史对；右上收藏；编号柱行列表；解析器扩中文数字；上次读到之前的行变淡；
-≥ 60 章分段芯片；有声书继续卡片解 `t=` 写时间点；上次读到行尾写章内进度；装配器透传简介；页内横幅 + 重试 / 登录；向 fwq 提五条合成一份需求文本。
-并确认 fwq 侧不需要新增字段，只需覆盖合同已允许的字段与修两处抓取。
+裁决叙事见 [status-log.md](../history/status-log.md)。
 
 ## 十一、不改的东西
 
@@ -182,6 +181,4 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 
 ## 十三、真机验收清单
 
-- 待走：有声书（开始 / 继续收听、章节进播放器）、失败与登录横幅、没有章节、简介（规则给时）。
-- 章节 `order` 不接：Core 会读，`BookSourceRuntime.loadDetail` 构造 `SourceChapter` 时不带、也不按它排。
 - 深色模式整页看一遍。

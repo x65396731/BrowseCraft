@@ -69,13 +69,12 @@
 
 ## 七、视觉取值
 
-尺寸两档：大号 96pt（删除账号）、中号 56pt（恢复卡）。底板色 `brandWaitingFill` 为 #0E1D25，取自素材圆边的实际背景色。不加阴影与描边。
+尺寸两档：大号 96pt（删除账号）、中号 56pt（恢复卡，以及漫画阅读器换话等待浮层 `ReaderChapterSwitchWaitingBand`，见 [Comic-Reader-Chapter-Swipe-Design.md](Comic-Reader-Chapter-Swipe-Design.md)）。底板色 `brandWaitingFill` 为 #0E1D25，取自素材圆边的实际背景色。不加阴影与描边。
 启动建库段的黑底与启动屏、启动动画同属 `CatalogPalette` 注释登记的功能性取值。
 
 ## 八、裁定
 
-2026-10-20 用户裁定待裁定八项全取 A：主题用看板娘 Q 版小动作；建库段换启动屏静图、启动视频不动；网址输入页不放；圆形墨青底；大 96 / 中 56 两档；
-恢复卡去掉小转圈；素材用 MP4 循环；减弱动态效果显示海报帧。
+裁决叙事见 [status-log.md](../history/status-log.md)。
 
 ## 九、实现位置
 

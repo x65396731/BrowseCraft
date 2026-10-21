@@ -16,7 +16,7 @@
 4. 书架是 Library 里**独立于 Source 的一栏**：本地书不是 `Source`，不进 `SourceConfiguration`，不进 CloudKit 同步（首批）。等站点抓取路接上时，站点书与本地书共用同一个阅读器与同一张进度 / 书签表（外键从 `localBookID` 扩为「作品标识」，第 六节）。
 5. Readium 模块进不了 `Domain` 与 `Application`，由架构边界脚本执行：`BCA-ARCH-002`。
 
-## 二、Readium 3.11.0 的能力（从源码核对，不凭记忆）
+## 二、Readium 3.11.1 的能力（从源码核对，不凭记忆）
 
 | 能力 | API | 说明 |
 |---|---|---|

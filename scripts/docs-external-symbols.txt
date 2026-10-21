@@ -1,4 +1,4 @@
-# A10 的外部符号白名单：文档里点名、但本仓库与四个包的源码里不存在的标识符。
+# A10 的外部符号白名单：文档里点名、但本仓库与五个包的源码里不存在的标识符。
 #
 # 每行「标识符  # 理由」。**只允许收敛，不允许新增未经审阅的条目**——删掉一行即恢复对它的检查。
 # 加一行之前先确认它真的不是本仓库的代码：写错的类名混进来，A10 就白建了。
@@ -27,12 +27,11 @@ UIBackgroundModes                    # Info.plist 键，不是 Swift 符号
 # ---- 已删除、文档有意提及的符号 ----
 RSSReadingHistoryRecord              # 随 RSS 于 2026-09-16 删除；文档在「该节已归档且现已不成立」的注里提它
 RuleResolver                         # Core 漫画 V2 迁移删掉的旧 DTO helper；合同在「已删除」一节点名它
-VideoAdapter                         # Core Video P2-6 删掉的 V1 适配层；合同在「Core 删除」一句里点名它
+VideoAdapter                         # Core Video P2-6 删掉的 V1 适配层；合同在「Core 没有」一句里点名它
 VideoSourceDefinition                # 同上，V1 的视频来源定义，已由 RuleBackedSourceDefinition 取代
-VideoPlaybackRuntimeCapability       # P2-3 阶段的计划名，未落地；合同在阶段范围一句里点名它
 
 
 # ---- 未实现的计划名（设计留档，见 STATUS 对应行）----
 
 # ---- 文档里的占位记号 ----
-BrowseCraftXxx                       # scripts/README 里表示「四个兄弟包之一」的占位写法
+BrowseCraftXxx                       # scripts/README 里表示「五个兄弟包之一」的占位写法

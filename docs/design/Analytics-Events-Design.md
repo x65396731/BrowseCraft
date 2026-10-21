@@ -81,7 +81,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
 | `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
 | `push_opened` | 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。 | entry（PushOpenEntry：rule_generation 生成结果、campaign 活动推送，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第六节）。不报：推送内容、任务 ID 与活动标识。 |
-| `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |
+| `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志（导出入口只在 Debug 构建存在）时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |
 | `problem_report_submitted` | 页内问题报告点「发送」后的结局报一次（[Problem-Report-Design.md](Problem-Report-Design.md) 第十节）；关掉面板没发送不报。 | report_scope（ProblemReportScope）、problem_type（ProblemReportProblemType）、entry（ProblemReportEntry）、result、error_code（ProblemReportFailureCode，仅失败）。不报：补充说明、报告编号、网址与标题。 |
 
 ### B. 来源与规则目录
@@ -183,7 +183,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 
 ## 4. 参数
 
-GA4 每个项目只有 50 个事件级自定义维度名额，本表登记 26 个。下表除 `screen_name`、`screen_class`、`app_version`、`build_number` 四个由 GA4 内置维度承接外，其余都要在控制台注册为事件级自定义维度；新增参数先进本表。
+GA4 每个项目只有 50 个事件级自定义维度名额，本表登记 30 个参数、其中 26 个要在控制台注册。下表除 `screen_name`、`screen_class`、`app_version`、`build_number` 四个由 GA4 内置维度承接外，其余都要在控制台注册为事件级自定义维度；新增参数先进本表。
 
 | 参数 | 含义与取值 |
 | --- | --- |
@@ -236,7 +236,7 @@ GA4 每个项目只有 50 个事件级自定义维度名额，本表登记 26 �
 | 来源 | `entry_guide` | 生成引导屏 |
 | 来源 | `generation_input` | 网址输入·生成 |
 | 来源 | `source_activation` | 启用来源窗口（sheet） |
-| 来源 | `source_debug` | 来源详情（只读调试页） |
+| 来源 | `source_debug` | 来源详情（只读调试页，页面只在 Debug 构建存在） |
 | 库 | `library_search` | 来源内搜索（sheet） |
 | 库 | `source_login` | 站点登录（全屏） |
 | 库 | `comic_detail` | 漫画详情 |

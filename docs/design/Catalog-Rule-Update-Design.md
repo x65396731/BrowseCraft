@@ -43,6 +43,6 @@
 
 ## 四、实现位置
 
-`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`（指纹、判据与批量覆盖）、`BrowseCraft/Infrastructure/Database/Repositories/GRDBSourceRepository.swift`（指纹列的读写）、
+`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`（指纹、判据与批量覆盖）、`BrowseCraft/Features/Sources/Catalog/SourceCatalogService.swift`（目录请求）、`BrowseCraft/Infrastructure/Database/Repositories/GRDBSourceRepository.swift`（指纹列的读写）、
 `BrowseCraft/Features/Sources/SourcesViewModel.swift`（两条自动跟随路径）、`BrowseCraft/App/RootView.swift`（启动与回到前台的触发）、
-`BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`（目录行只剩添加 / 添加中 / 已添加 / 添加失败）。
+`BrowseCraft/Features/Sources/Catalog/CatalogSourceListView.swift`（目录行只剩添加 / 添加中 / 已添加 / 另一条正在添加（`CatalogAddActionState.unavailable`）/ 添加失败，添加中可取消、总时限 45 秒，见 [Catalog-Page-Redesign-Design.md](Catalog-Page-Redesign-Design.md) 2.4）。

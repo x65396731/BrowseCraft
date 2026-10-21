@@ -10,7 +10,7 @@
 `CloudSyncSettingsView` 曾是一个系统 `Form`，最多六组：iCloud 账户、开关、同步的内容、立即同步、上次同步、云同步错误。
 
 - 这是设置里的二级页，底栏仍在。
-- iCloud 状态与身份关联四行混在一组，两个蓝色按钮夹在两行状态之间；「AnyPortal 身份」「私有 CloudKit 存储」是实现用语。
+- iCloud 状态与身份关联四行混在一组，两个蓝色按钮夹在两行状态之间；「AnyPortal 身份」「私有 CloudKit 存储」是实现用语（开启失败时直显的错误文案仍沿用「AnyPortal 身份」这组旧词条，见第六节）。
 - 刷新、关联身份、立即同步、重试四个按钮，与「刷新 / 重试用下拉，不加按钮」的约定不符。
 - 「上次同步」六行数字平时全是 0。
 - 「自定义来源」已不准确（规则只来自目录，`BCA-UI-003`）；「阅读进度 · 暂不支持」让人以为 App 没有这个功能。
@@ -36,7 +36,7 @@
 - **状态卡**：56pt 圆形图标 + 标题 + 一句说明，圆角 22；卡片本体是共用的 `StatusCardView`（`BrowseCraft/Features/Shared/StatusCardView.swift`，
   与网址输入页的结论卡、结果卡同一套），本页只提供取值与两段附加小字。进行中带转圈；异常时图标与描边换警示色，并写「↓ 下拉可重试」。
   正常用设置页图标蓝，未开启用次级灰；不用绿，不加插画（同日裁定）。来源页「iCloud 首次恢复」卡（`CloudSyncInitialRestoreView`）
-  同是圆角 22 的卡片，但圆标处已换成 56pt 品牌等待标记、不带转圈，见 [品牌等待标记](Brand-Waiting-Mark-Design.md)；本页状态卡不换。
+  进度态同是圆角 22 的卡片（失败态是圆角 16、警示色描边），圆标处已换成 56pt 品牌等待标记、不带转圈，见 [品牌等待标记](Brand-Waiting-Mark-Design.md)；本页状态卡不换。
 - **开关**：一行「云同步」+ 系统开关，组下说明「关闭后不会删除任何数据，本机和 iCloud 里的内容都保留」。
 - **同步的内容**：第二节那三行，32pt 图标方块。
 - **上次同步**：一行小字「上次同步 时间 · 上传 N · 下载 N」，今天的只写时刻；云端删除在本机生效的条数并入「下载」。
@@ -92,7 +92,7 @@
   `BrowseCraft/Infrastructure/Database/Sync/GRDBCloudAccountPartitionStore.swift`：读「同步的内容」前两行的条数。
 - `BrowseCraft/Application/Ports/Sync/HistoryEntrySyncLocalStore.swift` 与 `BrowseCraft/Infrastructure/Database/Sync/GRDBHistoryEntrySyncLocalStore.swift`：第三行「历史与阅读进度」的作品数（`syncedWorkCount()`）。
 - 入口卡复用来源页的 `SourcesEntryCardView`，卡片组与行间线复用 `SettingsCardGroup`、`SettingsRowSeparator`。
-- 三份 `Localizable.strings` 末尾「云同步页重设计」一段；原页面不再使用的词条已删除。
+- 三份 `Localizable.strings` 末尾「云同步页重设计」一段；原页面不再使用的词条已删除。开启云同步失败时直显的错误文案（`CloudSyncSettingsViewModel.setupErrorMessage`）仍用「iCloud 中的 AnyPortal 身份记录无效」这组旧词条。
 
 ## 七、真机验收清单
 

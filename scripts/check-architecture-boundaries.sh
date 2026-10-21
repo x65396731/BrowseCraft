@@ -121,7 +121,7 @@ if [[ -d "$DOMAIN_PACKAGE_ROOT" ]]; then
 fail_if_imported \
   "$DOMAIN_PACKAGE_ROOT" \
   "$FORBIDDEN_FRAMEWORKS" \
-  'BrowseCraftDomain may depend only on Foundation and BrowseCraftCore.'
+  'BrowseCraftDomain may depend only on Foundation, BrowseCraftRuleModels (BrowseCraftCore) and BrowseCraftLog.'
 fi
 
 fail_if_imported \
@@ -288,7 +288,7 @@ fi
 # 中文注释：Swift 6 语言模式闸门（2026-09-18）。切换前已量过代价为零，它把此前
 # 「complete 严格并发 + 警告为零」这一当下状态固化成编译错误。这个取值一旦被调回
 # 5.x，全部数据竞争诊断会退回警告，而警告不会让任何构建失败——没人会发现。
-# 因此把它写成显式声明加闸门：工程与四个包各自声明一次，这里逐一核对。
+# 因此把它写成显式声明加闸门：工程与五个包各自声明一次，这里逐一核对。
 app_swift_version="$(sed -n 's/^ *SWIFT_VERSION: *"\(.*\)"/\1/p' "$REPOSITORY_ROOT/project.yml" | head -1)"
 if [[ "$app_swift_version" != "6.0" ]]; then
   echo "Architecture boundary violation: project.yml 的 SWIFT_VERSION 是 '${app_swift_version}'，应为 6.0。"

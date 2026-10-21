@@ -47,7 +47,7 @@
 
 - 点「清除缓存」不弹确认（2026-10-03 用户裁定）：清掉的只是下次会重新下载的东西。
 - 清除一起清封面与漫画页、列表缩略图、网页缓存（磁盘、内存、fetch）与系统网络缓存（同日裁定），磁盘真正清完才算完成。
-- 清除中按钮换成转圈 +「正在清除」并禁用；清完用量重算，按钮下绿色一行「已清除，释放 N」约 3 秒后消失。N 只算图片部分。
+- 清除中按钮换成转圈 +「正在清除」并禁用；清完用量重算，按钮下绿色（`CatalogPalette.gain`）一行「已清除，释放 N」约 3 秒后消失。N 只算图片部分。
 - 改上限时 ✓ 立刻移到新行；新上限小于已用时按原有逻辑裁到新上限的 75%，裁完重算用量。
 - 保存上限失败仍弹原有提示框，文案不变；去掉原来「已开始清除」那个提示框。
 - 页面跟随系统深浅，只用系统底色层级与 `CatalogPalette` 的取值。
@@ -61,7 +61,7 @@
 - `BrowseCraft/Infrastructure/Caching/ImageCacheConfigurator.swift`：在 DataCache 自己的串行队列上算用量、清除并等待完成。
 - `BrowseCraft/Infrastructure/Caching/ItemThumbnailImageCachePlugin.swift`：暴露缩略图磁盘缓存与固定上限，补清内存。
 - `BrowseCraft/Infrastructure/Caching/WebsiteCacheCleaner.swift`：只清 WebKit 的缓存类数据。
-- 三份 `Localizable.strings` 末尾「缓存页重设计」一段。
+- 三份 `Localizable.strings` 的 `cache_*` 一段。
 
 ## 六、真机验收清单
 

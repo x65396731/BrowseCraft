@@ -58,7 +58,7 @@
 
 | 顺序 | 块 | 内容 | 什么时候出现 |
 | --- | --- | --- | --- |
-| 1 | 顶部 | 眉行「气泡 漫画 · 主机名」（图标取漫画类型色）+ 大标题 = 来源名 + 右侧搜索 / 账号圆按钮 | 一直；两个按钮各自按规则有无 |
+| 1 | 顶部 | 眉行「气泡 漫画 · 主机名」（图标取漫画类型色）+ 大标题 = 来源名 + 右侧搜索 / 账号 /「…」圆按钮（「…」是问题报告入口，与视频库同一个 `ProblemReportMenuButton`，见 [Problem-Report-Design.md](Problem-Report-Design.md) 第三节，`BCA-UI-006`） | 一直；搜索与账号各自按规则有无，「…」只在有问题报告提交器且已选中来源时 |
 | 2 | 分类条 | 贴顶胶囊芯片，选中段漫画类型色底 | 来源有两个以上列表页时 |
 | 3 | 上次读到 | 漫画类型色的深色瓷砖：封面 72×100、「上次读到」、作品名、「4-2 真夜中の逢瀬 · 6 / 58 页」、进度条、时刻；点了直接进阅读器 | 当前来源有漫画历史时 |
 | 4 | 分类出错横幅 | 警示色淡底一行 | 有内容但当前分类报错时 |
@@ -106,10 +106,10 @@
 | --- | --- |
 | 首屏加载 | 骨架与封面墙同形：三列封面色块（圆角 10）+ 两行标题条，呼吸动画；`LibrarySkeletonGridView` 按类型选列数，漫画 9 张 |
 | 取回来是空的 | `LibraryPlaceholderView`：插画 `EmptyStateLibraryComic`（看板娘把一叠淡色空白封面的单行本抱在胸前，本页自己的图；库页空态按来源类型选插画，视频仍是 `EmptyStateLibraryVideo`）+「还没有内容」+ 一句说明 +「下拉可重新载入」 |
-| 第 1 页失败 | 同上，插画 `EmptyStateOffline` +「载入失败」+ 错误原因 +「下拉重试」 |
-| 有内容但本分类报错 | 警示色淡底横幅，在网格上方（共享 `LibraryStateBanner` 的纯文字失败态，原 `LibraryTabErrorBanner`） |
+| 第 1 页失败 | 同上，插画 `EmptyStateOffline` +「载入失败」+ 错误原因 +「下拉重试」；下面一行「报告问题」小字链接（`ProblemReportLink`），打开同一个报告面板并带上失败原因 |
+| 有内容但本分类报错 | 警示色淡底横幅，在网格上方（共享 `LibraryStateBanner` 的纯文字失败态，原 `LibraryTabErrorBanner`）；说明句下多一行「报告问题」小字链接 |
 | 切换来源 | 旧列表留在屏上盖页面底 82% + 居中状态卡（现有） |
-| 翻页中 / 还有下一页 / 已到底 | 分页脚三条文案（现有） |
+| 翻页中 / 还有下一页 / 已到底 / 翻页失败 | 分页脚文案与视频库同一个 `LibraryPaginationFooterView`；翻页失败时原因下一行「报告问题」小字链接 |
 | 翻页失败 | 分页脚那一行换警示色「第 N 页 · 加载失败，再滑到底重试」，下面一行小字写 `RuleExecutionErrorClassifier.userMessage` 的原因；不弹框、不出横幅；已加载的内容照留；再次触底就重试（2026-10-10 裁定） |
 | 下拉刷新 | 系统下拉控件；刷新中网格不换骨架 |
 | 来源需要登录 | 账号按钮空心；列表照规则给的结果显示（现状） |
@@ -175,14 +175,12 @@
 ## 十二、实现位置
 
 - `BrowseCraft/Features/Library/Comic/List/ComicLibraryCardView.swift`：重画卡片（封面 + 进度角标 + 已收藏爱心 + 标题 + 最新话 + 长按菜单），删 `libraryTitleText` 与写死的蓝紫色。
-- `BrowseCraft/Features/Library/Book/Site/BookLibraryCardView.swift`：重设计前漫画与书籍共用的旧卡片，书籍库重设计后已删除。
 - `BrowseCraft/Features/Library/Components/LibraryContentView.swift`：分成视频 / 漫画 / 书籍三个分支，漫画是三列封面墙，书籍走书脊列表（见库页书籍库合同）；给漫画卡片传进度角标与「继续读」回调。
 - `BrowseCraft/Features/Library/LibraryView.swift`：「上次读到」瓷砖分支与用历史开阅读器的导航。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift` 与 `LibraryPersistenceCoordinator`：按来源读漫画章节历史的只读查询、最近一条与按作品的进度字典、刷新时机。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：按类型选两列 / 三列。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 不改，换漫画样式即可。
-- `BrowseCraft/Shared/UI/LibraryTitleColor.swift`：已随书籍库重设计删除。
-- 三份 `Localizable.strings`：新增「读到 %@」「继续读 · %@」「已收藏」（爱心的读屏标签）；「上次读到」「继续读」「打开作品」沿用历史页与视频库的键。
+- 三份 `Localizable.strings`：「读到 %@」（`library_comic_read_to`）「继续读 · %@」（`library_card_continue_reading`）「已收藏」（`library_card_favorited`，爱心的读屏标签）；「上次读到」「继续读」「打开作品」沿用历史页与视频库的键。
 - `LibraryView` 的空态：按当前来源类型选插画，漫画用 `EmptyStateLibraryComic`。
 
 ## 十三、真机验收清单

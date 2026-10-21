@@ -6,7 +6,8 @@
 
 ## 文件组织
 
-- `AppDatabase.swift` 只负责数据库路径与执行迁移。
+- `AppDatabase.swift` 只负责数据库路径与执行迁移，并暴露 `currentSchemaMigrationIdentifier`（`AppDatabaseMigrations.identifiers` 的最后一项）。
+- `DatabaseErrorDiagnostics.swift` 把引导阶段的迁移失败归约成 SQLite 结果码记日志，不记 SQL 文本与绑定参数。
 - 表、主键、唯一键和索引由 `Migrations/`（`AppDatabaseSchemaV1` 与 `AppDatabaseMigrations`）创建；Record 类型（`*Record+Schema.swift` 伴随文件或 Record 本体）只保留列名 `Columns`，不建表。
 - `Records/User` 保存用户（含 coin 余额与版本号）、权益和用户级 UI 状态。
 - `Records/Source` 保存站点来源配置。
@@ -31,8 +32,8 @@
 - `cloud_record_metadata` 保存 CKRecord system fields/change tag，并按账户与 record name 隔离。
 - Source、Favorite 和同步账本 Repository 在每次事务开始前捕获活动 account scope。
 - 首次合并只复制 `local.default` 到目标 cloud scope，不删除或改写匿名空间。
-- `BCA-DB-002` 禁止修改已发布迁移的实现或标识；schema 变化必须追加新迁移。
-- `BCA-DB-003` 每次新增迁移都必须覆盖“上一正式版本数据库升级”与全新数据库创建，并执行 `foreign_key_check`。
+- `BCA-DB-002` 禁止修改已发布迁移的实现或标识；schema 变化必须追加新迁移，新迁移必须登记进 `AppDatabaseMigrations.identifiers`。
+- `BCA-DB-003` 每次新增迁移都必须覆盖“上一正式版本数据库升级”与全新数据库创建，并执行 `foreign_key_check`；同时同步更新 `AppDatabaseSchemaSnapshotTests` 的 schema 冻结快照。
 
 ## Source 删除规则
 

@@ -22,7 +22,7 @@
 
 ### 2.1 顶部
 
-- 大标题「历史」靠左，在内容里自绘；右侧一个「选择」按钮（2026-10-17 用户选定，原来的「N 条」去掉，总数看「全部」段）。当前筛选下没有历史时按钮变灰不可点。
+- 大标题「历史」靠左，在内容里自绘；右侧一个「选择」按钮（2026-10-17 用户裁定；不写总数，总数看「全部」段）。当前筛选下没有历史时按钮变灰不可点。
 - 标题下一个分段筛选「全部 | 视频 | 漫画 | 书籍」，共用 `CatalogSegmentedPicker`，每段带计数，四段一直显示，没有历史的类型计数为 0。
 - 临时资源按自身类型归入「视频」或「漫画」，不单独开一段。
 
@@ -65,7 +65,7 @@
 ### 2.5 点击语义
 
 - **点行或继续卡片**：接着看。漫画进阅读器、书进站点书阅读器、视频开全屏播放器、临时资源进它的详情页。
-- **左滑**：露出删除色 `#E5484D`「删除」按钮，再点一下按钮才删除，不支持一滑到底（2026-10-17 改：没有撤销后防误触）；不弹确认。
+- **左滑**：露出删除色 `#E5484D`「删除」按钮，再点一下按钮才删除，不支持一滑到底（没有撤销，靠这一步防误触）；不弹确认。
 - **长按菜单**：「继续看」（漫画、书为「继续读」）、「在库中查看来源」（切到该来源并打开库，与收藏页同一条路径；临时资源没有此项）、
   「选择多项」（进入选择模式并预先选中这一条）、分隔开的红色「删除记录」。
 - **不提供撤销**（2026-10-17 用户裁定）：删除立即生效，底部不再出现撤销提示。
@@ -112,8 +112,9 @@
 
 - `BrowseCraft/Features/History/HistoryView.swift`：顶部、类型筛选、继续卡片、按天分组的卡片行、左滑与长按、选择模式与操作栏、批量确认框、空状态与小空状态、阅读器目的地。
 - `BrowseCraft/Features/History/HistoryViewModel.swift`：筛选计数、继续条目、按天分组、看到哪里与视频进度、来源状态、封面请求配置缓存、删除、选择与批量删除。
-- `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryEntryRowView` 与 `HistoryContinueTileView`。
-- `BrowseCraft/Features/Shared/ContentCardComponents.swift`：收藏页与历史页共用的 `ContentCoverView`（封面 + 类型徽标 + 可选进度条）、
+- `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryEntryRowView` 与 `HistoryContinueTileView`；`HistoryContinueTileView` 还被库页「上次看到 / 读到 / 听到」三种瓷砖复用（`LibraryView`），视频进度文案 `HistoryViewModel.videoProgressText` 也由 `LibraryViewModel` 复用。
+- `BrowseCraft/Features/History/Components/HistoryUnavailableView.swift`：锁定态之外历史不可用时的占位。
+- `BrowseCraft/Features/Shared/ContentCardComponents.swift`：收藏页、历史页与库页瓷砖共用的 `ContentCoverView`（封面 + 类型徽标 + 可选进度条）、
   卡片组行与列表行修饰（选择模式下行间线起点与选中底色）。
 - `BrowseCraft/Features/Shared/ContentSelectionComponents.swift`：收藏页与历史页共用的勾选框、标题行按钮与选择操作栏。
 - `BrowseCraft/Application/UseCases/History/ReadingHistoryUseCases.swift` 与 `HistoryPersistenceCoordinator.swift`：按作品删除（批量删除一次交多部）、交回被删记录。

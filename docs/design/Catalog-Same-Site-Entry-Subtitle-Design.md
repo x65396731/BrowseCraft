@@ -12,8 +12,9 @@ sfacg 桌面分类 `tid=21` 作为新来源 `sfacg-com--list-tid-21` 发布进�
 
 ## 二、设计
 
-- 目录行副标题原为「类型 · 地址」，地址对个人规则取任务入口（`/outcomes` 的 `entryURL`），对公共目录取 `baseURL`。
-- 新增：公共目录里**同一主机出现两条及以上**来源时，这些来源的地址改取各自规则 `pages[]` 里第一个可展示的 `url`；
+- 目录行的显示形态由 [Catalog-Page-Redesign-Design.md](Catalog-Page-Redesign-Design.md) 2.2 定义：副标题只显示主机名（`CatalogStyle.recommendationSubtitle(baseURL:entryURL:)`），同站多条时在主机名后补入口路径的最后一段（含 query）以便区分；本文只定义「入口地址」从哪里来。
+- 地址对个人规则取任务入口（`/outcomes` 的 `entryURL`），对公共目录取 `baseURL`。
+- 公共目录里**同一主机出现两条及以上**来源时，这些来源的地址改取各自规则 `pages[]` 里第一个可展示的 `url`；
   跳过缺失与带占位符的模板（如 `?page={page}`），相对路径按 `baseURL` 补全；取不到仍显示 `baseURL`。
 - 单独一条的站不变，个人规则不变。公共目录列表加载时规则已解密为本体（`importRuleJSON`），`pages` 在顶层，无需再解密。
 - 不改引擎、服务器与已发布规则。

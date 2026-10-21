@@ -33,7 +33,7 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 中文注释：闸门覆盖以下内容，以当前取值为基线，阻止继续漂移：
 
 - import 检查匹配所有写法：`import X`、`@preconcurrency import X`、`@_exported import X`、`import struct X.Y`、`import X.Sub`。
-- 类型引用方向新增 Features→Infrastructure、Shared→Application、Shared→Infrastructure；`declared_types` 识别 `@Observable`、`nonisolated`、`package`、`open` 等修饰。
+- 类型引用方向包含 Features→Infrastructure、Shared→Application、Shared→Infrastructure；`declared_types` 识别 `@Observable`、`nonisolated`、`package`、`open` 等修饰。
 - `print(` 与 `try!` 禁用扩展到 App 与五个包（Core / Domain / Runtime / APIKit / Log）的 Sources。
 - 只有一种日志（`BCA-OBS-010`）：`debugPrint(`、`NSLog(`、`os_log(` 与已删除的 AppDebugLog、RuleRuntimeDebugLog 一律禁用，
   `Logger(` 与 `import OSLog` 只许出现在 `BrowseCraft/Shared/Logging/OSLogSink.swift`。
@@ -90,7 +90,7 @@ scale 槽位的表现是包体悄悄变大而没人发现。闸门按 `scripts/b
 声明文件里另有两种形态：`multi-scale-png`（1x / 2x / 3x 三档，用于按 pt 尺寸原生渲染、不经缩放的图，例如底栏图标）
 与 `keep-as-is`（维持现状）。形态取值的定义写在声明文件头部。
 
-形态怎么选有实测依据，逐项数据在审计报告 5.4.1：占位图一律被缩放到版面框，多档槽位无收益；
+形态怎么选有实测依据（逐项数据只存于历史审计报告，不作合同依据）：占位图一律被缩放到版面框，多档槽位无收益；
 渲染宽度远小于原生分辨率的图标 lossy 后在真实渲染宽度上的 SSIM 仍有 0.990 以上，
 而按接近原生分辨率铺满屏幕的图（视频详情占位图）只剩 0.964，因此保持无损。
 
@@ -124,7 +124,9 @@ swift scripts/illustration-despeckle.swift <抠图结果.png> <输出.png> 200 [
 
 Runs as a pre-build phase of the `BrowseCraft` target. A PROD archive
 (`ACTION=install`) that still uses Google's sample rewarded ad unit fails; every
-other build only prints a warning. Debug, TestFlight and Release all carry the
+other build only prints a warning. A PROD archive also asserts that the catalog
+decryption key list (`BROWSECRAFT_CATALOG_ENCRYPTION_KEYS`) is non-empty and contains a
+`prod-` key (`BCA-BUILD-003`); Debug and TestFlight may keep the tracked test key. Debug, TestFlight and Release all carry the
 real rewarded ad unit in `project.yml`, so it currently reports clean everywhere.
 
 ```sh

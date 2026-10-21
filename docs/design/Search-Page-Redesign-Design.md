@@ -16,12 +16,12 @@
 - **三种类型共用一页**。搜索结果已经经 `LibraryContentView` 按来源 kind 分流复用库页三套版式（两列海报墙、三列封面墙、书脊行），本页的结果区不另起版式，只做外壳、输入与状态。
 - **它是 sheet，不是推入页**。库页用 `.sheet` 弹出，里面自带 `NavigationStack`，结果点开的详情页在 sheet 内部推入；收起靠右上按钮或下拉。详情页「隐藏底栏只留返回」的约定在 sheet 里不适用。
 - **键盘一直在**。进页自动聚焦，页面大半时间下半截被键盘盖住，未搜索态与无结果态都要在键盘之上的半屏里站住。
-- **能力由规则声明**。只有规则带 `searchRules` 的来源才有搜索按钮；分页也由搜索规则的 `pagination` 声明，当前线上规则都不带分页，结果区只有一页。
+- **能力由规则声明**。只有规则带 `searchRules` 的来源才有搜索按钮；分页也由搜索规则的 `pagination` 声明，规则不声明时结果区只有一页。
 
 ## 二、规则与本机实际给什么数据
 
 搜索这条链三层都已经接好，页面只是壳。Core 三条 kind 各有一个搜索规则模型（`SearchRule` / `VideoSearchRule` / `BookSearchRule` / `ComicSearchRuleV2`），字段都是 fwq `BC-SEARCH-007`
-的那九个：`id`、`url`（恰一个 `{keyword}` 槽位）、`method`、`keywordEncoding`、`request`、`listRuleRef` 或自带 `item + fields`、`pagination`。Runtime 三条 kind 都实现 `SourceSearchRuntime.search`，
+的那十个：`id`、`url`（恰一个 `{keyword}` 槽位）、`method`、`keywordEncoding`、`keywordCharset`（`BC-SEARCH-022`，关键词按站点字符集编码）、`request`、`listRuleRef` 或自带 `item + fields`、`pagination`。Runtime 三条 kind 都实现 `SourceSearchRuntime.search`，
 输出与列表同型的 `SourceListOutput`（`items` + `pagination`）；App 的 `SearchSourceContentUseCase` 只问能力、传关键词与页码，`LibraryViewModel` 把结果经同一个 `SourceListContentItemMapper` 映成 `ContentItem`。
 
 能力与形状由规则声明，页面只消费 Runtime 的输出：
@@ -89,7 +89,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 | 网格 / 行 | `LibraryContentView(items: searchResults, …)` 原样：视频两列海报（集数徽章、爱心）、漫画三列封面（最新话）、书脊行（最新 · 原文） | 三份库页合同的取值，本页不重复也不覆盖 |
 | 点卡片 | 与库页同一条链推入详情；详情页在 sheet 内，返回回到结果，结果与滚动位置保留 | `navigationDestination(item:)` 不动 |
 | 爱心 / 长按 | 卡片自带；收藏后库页同一条目的爱心同步（同一个 `favoriteItemIDs`） | — |
-| 分页脚 | 规则声明 `pagination` 且 Runtime 报出下一页时，网格底部挂库页同一个触底哨兵与分页脚 | 当前 14 条规则都没有，所以现在看不见；接线要做，不留死路 |
+| 分页脚 | 规则声明 `pagination` 且 Runtime 报出下一页时，网格底部挂库页同一个触底哨兵与分页脚 | 规则声明 `pagination` 时才出分页脚；接线不留死路 |
 | 键盘 | 提交时收键盘；结果区 `scrollDismissesKeyboard(.interactively)`，点搜索框重新弹 | 没有结果区点空白收键盘的手势（会和卡片点击打架） |
 | 底部 | 内容底距安全区 24pt | sheet 里没有底栏 |
 
@@ -99,7 +99,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 
 | 场景 | 显示 |
 | --- | --- |
-| 未搜索 | 插画 `EmptyStateSearch`（看板娘双手举着一面空镜片的大放大镜；已登记资产 274×540，库页视频库改用自己的图后当前没有页面在用它）按高 150 画，下面「搜索 樱花动漫」`headline` 与一句说明；整块顶对齐，搜索框下 24pt，键盘弹起的半屏里插画与两行字都看得全 |
+| 未搜索 | 插画 `EmptyStateSearch`（看板娘双手举着一面空镜片的大放大镜；已登记资产 274×540，库页视频库改用自己的图后只剩本页在用它）按高 150 画，下面「搜索 樱花动漫」`headline` 与一句说明；整块顶对齐，搜索框下 24pt，键盘弹起的半屏里插画与两行字都看得全 |
 | 搜索中 | 眉行「正在搜索 “关键词”」+ 按 kind 的骨架网格；搜索框照常可编辑，再次回车取消上一次、发新请求（`performSearch` 走可取消的 Task） |
 | 无结果 | 同一张插画 +「没有找到 “关键词”」+「换个关键词试试。」，顶对齐；搜索框里的字保留、不自动聚焦 |
 | 失败 | 警示淡底横幅（共享 `LibraryStateBanner` 失败态：`warningFill` 底、圆角 16，左三角感叹号 `warning`，中间 `RuleExecutionErrorClassifier.userMessage` 的一句话 `caption` 次级色，右侧「重试」警示色实心胶囊）；与漫画 / 书详情、库页的页内横幅同一个组件；重试 = 用上次关键词重搜 |
@@ -147,9 +147,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 
 ## 十、裁定
 
-2026-10-09 用户裁定十四项全取 A：自绘眉行 + 「搜索」+ 圆形关闭；卡片底搜索框 + 聚焦类型色描边；只靠键盘搜索键提交；未搜索态插画顶对齐；不做最近搜索；搜索中按 kind 骨架；
-无结果同一张插画；失败横幅 + 重试（登录墙多「登录」、登录后自动重搜）；结果眉行「“关键词” · N 个结果」；App 侧接分页；关闭再打开保留状态、换来源清空；提交收键盘、滚动交互式收键盘；
-类型色只用在眉行图标与聚焦描边；跟随系统深浅。
+裁决叙事见 [status-log.md](../history/status-log.md)。
 
 ## 十一、不改的东西
 
@@ -168,5 +166,4 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 
 ## 十三、真机验收清单
 
-- 模拟器没走到：搜索中骨架（请求太快抓不到）、无结果（czbooks 对任意关键词都回 40 条）、失败 / 登录横幅、分页脚（线上搜索规则都不带分页）、视频与漫画来源的结果版式。
 - 深色模式整页看一遍。
