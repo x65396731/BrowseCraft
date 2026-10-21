@@ -1766,3 +1766,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日构建号 53 → 54，`PROD BrowseCraft` scheme 归档 1.0 (54)（用户「帮我改到 54，用 PROD 打包」；此前 TestFlight 的 1.0 (53) 是 TEST scheme、带测试工具，不能直接提审）。归档核过：环境名 PROD、激励单元 2887798038、目录解密密钥 prod-v1 与服务器一致、二进制无测试工具符号、无测试设备列表。
 - 同日 1.0 (54) 经 `xcodebuild -exportArchive`（app-store-connect、自动签名、上传 dSYM）上传成功，App Store Connect 20:26 显示「正在处理」；导出时第三方预编译框架（Firebase / GoogleMobileAds / FFmpeg 系列）无 dSYM 的告警与 App 自身无关。提审前在真机装 54 核设置页无「测试工具」。
 - 同日 TestFlight 1.0 (54) 处理完成：填「测试内容」（上架用 PROD 包、与 53 代码相同、五条核对点），加内部群组「为什么要测试」（1 人）与外部群组「测什么测跑起来不崩就对了」（3 人，提交 Beta 审核，自动通知），列表状态「正在测试」。
+- 同日提审被拦：「必须上传 13 英寸 iPad 截屏」——`project.yml` 项目级的 `TARGETED_DEVICE_FAMILY: "1"` 不生效（XcodeGen 给 iOS target 的缺省是 "1,2" 且 target 级覆盖项目级），1.0 (53) / (54) 的包都声明了 iPad；改为写进 BrowseCraft target 的 `settings.base`，构建号 54 → 55，PROD 重新归档。App 信息「内容版权」按用户裁定选「否，不包含、显示或访问第三方内容」（工具型 App，内容由用户指定网站、设备直连）。

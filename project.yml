@@ -20,7 +20,7 @@ settings:
     # 它把此前「complete 严格并发 + 警告为零」这一当下状态固化成编译错误，防止悄悄漂回去。
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    CURRENT_PROJECT_VERSION: "54"
+    CURRENT_PROJECT_VERSION: "55"
     MARKETING_VERSION: "1.0"
     CODE_SIGN_STYLE: Automatic
     # 中文注释：团队 ID 必须写在这里。XcodeGen 每次重新生成都会覆盖 project.pbxproj，
@@ -28,6 +28,8 @@ settings:
     DEVELOPMENT_TEAM: SG84FDK26C
     # 中文注释：只支持 iPhone。界面还没做 iPad 适配，声明 "1,2" 会让 App Store Connect 强制要求 iPad 截图；
     # iPad 上仍可按 iPhone 兼容模式运行。做完 iPad 适配再改回 "1,2"。
+    # 2026-10-21：这一行在项目级**不生效**——XcodeGen 给 iOS target 的缺省是 "1,2" 且 target 级覆盖项目级，
+    # 1.0 (53) / (54) 的包因此都声明了 iPad，提审被要求 iPad 截屏。真正生效的是 BrowseCraft target 的 settings.base。
     TARGETED_DEVICE_FAMILY: "1"
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
     CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
@@ -143,6 +145,8 @@ targets:
       TestFlight: Config/CatalogEncryption.testflight.xcconfig
     settings:
       base:
+        # 中文注释：只支持 iPhone（见顶部同名设置的说明）；必须写在 target 级才能压过 XcodeGen 的 "1,2" 缺省。
+        TARGETED_DEVICE_FAMILY: "1"
         PRODUCT_BUNDLE_IDENTIFIER: com.xiefei.AnyPortal
         PRODUCT_NAME: AnyPortal
         PRODUCT_MODULE_NAME: BrowseCraft
