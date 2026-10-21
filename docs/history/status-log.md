@@ -1763,3 +1763,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日提交与打包（用户「提交并打包吧」）：真机实测记录 88194e86、规则目录添加中的等待与锁定 957d4da0；STATUS 两行检查点 1ce73b62 → 957d4da0；构建号 52 → 53，TEST scheme 归档 1.0 (53)。
 - 同日 TestFlight 1.0 (53) 真机实测「规则目录添加中的等待与锁定」（用户逐步执行三步：添加中与锁定、取消不入库、正常添加）全部符合预期；STATUS 第 2 节新增一行 device-passed。
 - 同日 PortalCore 发布前审计四条合同变化的 App 侧核对：刷新串行化本就成立、`400f1ee5` 加钉住用例（STATUS 第 4 节新增一行 targeted-passed）；`/outcomes` 的 `sourceRemoved` 解码安全、提示发布后做（第 2 节新增一行 not-started）；目录接口 ETag / 304 零影响（目录请求 `reloadIgnoringLocalCacheData`）；`/docs` 只影响调试。
+- 同日构建号 53 → 54，`PROD BrowseCraft` scheme 归档 1.0 (54)（用户「帮我改到 54，用 PROD 打包」；此前 TestFlight 的 1.0 (53) 是 TEST scheme、带测试工具，不能直接提审）。归档核过：环境名 PROD、激励单元 2887798038、目录解密密钥 prod-v1 与服务器一致、二进制无测试工具符号、无测试设备列表。
