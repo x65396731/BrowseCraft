@@ -1764,3 +1764,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日 TestFlight 1.0 (53) 真机实测「规则目录添加中的等待与锁定」（用户逐步执行三步：添加中与锁定、取消不入库、正常添加）全部符合预期；STATUS 第 2 节新增一行 device-passed。
 - 同日 PortalCore 发布前审计四条合同变化的 App 侧核对：刷新串行化本就成立、`400f1ee5` 加钉住用例（STATUS 第 4 节新增一行 targeted-passed）；`/outcomes` 的 `sourceRemoved` 解码安全、提示发布后做（第 2 节新增一行 not-started）；目录接口 ETag / 304 零影响（目录请求 `reloadIgnoringLocalCacheData`）；`/docs` 只影响调试。
 - 同日构建号 53 → 54，`PROD BrowseCraft` scheme 归档 1.0 (54)（用户「帮我改到 54，用 PROD 打包」；此前 TestFlight 的 1.0 (53) 是 TEST scheme、带测试工具，不能直接提审）。归档核过：环境名 PROD、激励单元 2887798038、目录解密密钥 prod-v1 与服务器一致、二进制无测试工具符号、无测试设备列表。
+- 同日 1.0 (54) 经 `xcodebuild -exportArchive`（app-store-connect、自动签名、上传 dSYM）上传成功，App Store Connect 20:26 显示「正在处理」；导出时第三方预编译框架（Firebase / GoogleMobileAds / FFmpeg 系列）无 dSYM 的告警与 App 自身无关。提审前在真机装 54 核设置页无「测试工具」。
