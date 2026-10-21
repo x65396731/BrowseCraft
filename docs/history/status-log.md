@@ -1768,3 +1768,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日 TestFlight 1.0 (54) 处理完成：填「测试内容」（上架用 PROD 包、与 53 代码相同、五条核对点），加内部群组「为什么要测试」（1 人）与外部群组「测什么测跑起来不崩就对了」（3 人，提交 Beta 审核，自动通知），列表状态「正在测试」。
 - 同日提审被拦：「必须上传 13 英寸 iPad 截屏」——`project.yml` 项目级的 `TARGETED_DEVICE_FAMILY: "1"` 不生效（XcodeGen 给 iOS target 的缺省是 "1,2" 且 target 级覆盖项目级），1.0 (53) / (54) 的包都声明了 iPad；改为写进 BrowseCraft target 的 `settings.base`，构建号 54 → 55，PROD 重新归档。App 信息「内容版权」按用户裁定选「否，不包含、显示或访问第三方内容」（工具型 App，内容由用户指定网站、设备直连）。
 - 同日 1.0 (55)（只 iPhone）PROD 归档核过（UIDeviceFamily [1]、PROD、prod-v1、无测试工具）并上传，App Store Connect 22:09 显示「正在处理」；处理完把版本 1.0 的构建从 54 换成 55 再提审。
+- 同日 22:2x 版本 1.0（构建 55）提交 App 审核，状态「正在等待审核」；提审页：繁中 + 英文两套文案（docs/release/app-store-listing-1.0.md）、各 6 张 iPhone 截屏、技术支持网址 https://anyportal.online/support、版权 © 2026 Xie Fei、不需要登录、联系人谢飞 / 邮箱 / +81 电话、英文审核备注、手动发布；App 信息「内容版权」选否；销售范围台湾 + 香港。审核通过后在 App Store Connect 手动点「发布此版本」。
