@@ -4,7 +4,7 @@ import XCTest
 
 // 中文注释：F2-7 的固定输入测量。不访问真实站点，页面用 loadHTMLString 注入，结果与网络无关。
 //
-// 两条被测量推翻的假设，结论写在 Documentation/Audit 里：
+// 两条被测量推翻的假设，结论写在 docs/history/2026-09-18-code-audit.md 里：
 // 1. 历史机制的「最少观察 6 轮」（约 1500ms 下限）不是浪费，而是一条没写下来的不变量：
 //    页面可能在 didFinish 之后先安静一段再用定时器写入正文，只看「连续 300ms 无变更」会在 300ms
 //    就判定稳定并交出空正文。`testMinimumSettleFloorIsLoadBearing` 守住这条。

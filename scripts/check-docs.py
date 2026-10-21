@@ -38,8 +38,9 @@ def sibling(pkg, pattern):
 # 六个仓库共用一套条款命名空间、一张状态表、一个闸门，不各建一份。
 # 兄弟包的 C 类文档进同一个扫描集；它们的条款定义点也在同一个 BCA-* 号段里。
 SIBLING_DOC_PACKAGES = ["BrowseCraftCore"]
-# 五个兄弟包的根 README 也是 C 类（docs/README.md 第 1 节）：端点清单、依赖陈述这类内容只有它们承载。
-SIBLING_README_PACKAGES = ["BrowseCraftCore", "BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit", "BrowseCraftLog"]
+# 四个兄弟包的根 README 也是 C 类（docs/README.md 第 1 节）：端点清单、依赖陈述这类内容只有它们承载。
+# Core 没有根 README（合同在 docs/ 下），闭包表与这里都不列它——列了而文件不在，glob 空集会静默通过。
+SIBLING_README_PACKAGES = ["BrowseCraftDomain", "BrowseCraftRuntime", "BrowseCraftAPIKit", "BrowseCraftLog"]
 
 # AGENTS.md 被 .gitignore，只存在于写它的机器上；不在就不扫，由 A0 如实报告。
 LOCAL_AGENTS = "AGENTS.md"
@@ -61,7 +62,9 @@ S_FILES = ["docs/STATUS.md"]
 HANDOFF = "HANDOFF.md"
 H_FILES = (rglob("docs/history/*.md") + [HANDOFF]
            + [f for pkg in SIBLING_DOC_PACKAGES for f in sibling(pkg, "docs/history/*.md")])
-ALL_FILES = C_FILES + S_FILES + H_FILES
+# R 类发布材料（docs/README.md 第 1 节）：不承载定义点（A1）、链接要可解析（A7），不受 C 类形态约束。
+R_FILES = rglob("docs/release/*.md")
+ALL_FILES = C_FILES + S_FILES + H_FILES + R_FILES
 
 # BCA-DOC-011 的规模阈值。唯一声明点在此，文档只说「有上限」不复述数值——写两处必然漂移。
 HANDOFF_MAX_LINES = 250
@@ -162,8 +165,8 @@ def collect_definitions(rep):
                 continue
             cid, domain = m.group(1), m.group(2)
             where = f"{rel}:{n}"
-            if rel in H_FILES:
-                rep.fail("A1", where, f"H 类归档承载了定义点 {cid}（BCA-DOC-009：归档不构成生产约束）")
+            if rel in H_FILES or rel in R_FILES:
+                rep.fail("A1", where, f"H / R 类文档承载了定义点 {cid}（BCA-DOC-009：归档与发布材料不构成生产约束）")
                 continue
             if domain not in DOMAINS:
                 rep.fail("A1", where, f"{cid} 的域 {domain} 不在受控词表内（docs/README.md 第 4 节）")
@@ -662,6 +665,9 @@ def main():
     rep = Report()
     if not AGENTS_PRESENT:
         rep.skip("A0", f"本机没有 {LOCAL_AGENTS}（被 .gitignore，只在写它的机器上存在），未扫描它")
+    for pkg in SIBLING_README_PACKAGES:
+        if not sibling(pkg, "README.md"):
+            rep.skip("A0", f"../{pkg}/README.md 不在（闭包表列了它）：缺席的兄弟包跳过，若包在而文件不在则是闭包声明与仓库不符")
     fwq_defs = load_fwq_definitions(args.fwq)
     defs = collect_definitions(rep)
     check_references(rep, defs, fwq_defs)

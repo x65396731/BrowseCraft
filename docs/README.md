@@ -9,8 +9,9 @@
 
 | 类 | 位置 | 在闭包内 | 时态 |
 | --- | --- | --- | --- |
-| **C 合同** | `AGENTS.md`（本地文件，不被 git 跟踪，不在的机器上闸门跳过它）、根 `README.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、`scripts/README.md`、包内 `README.md`、五个兄弟包的根 `README.md`（`../BrowseCraftCore` 等）、`../BrowseCraftCore/docs/README.md` 与其 `docs/design/*.md` | **是** | 只用现在时陈述 |
+| **C 合同** | `AGENTS.md`（本地文件，不被 git 跟踪，不在的机器上闸门跳过它）、根 `README.md`、`docs/README.md`、`docs/architecture.md`、`docs/design/*.md`、`scripts/README.md`、包内 `README.md`、四个兄弟包的根 `README.md`（Domain / Runtime / APIKit / Log；Core 没有根 README，其合同在 `docs/` 下）、`../BrowseCraftCore/docs/README.md` 与其 `docs/design/*.md` | **是** | 只用现在时陈述 |
 | **S 状态** | `docs/STATUS.md` | **仅该工作项对应的行** | 受控枚举 |
+| R 发布材料 | `docs/release/*.md` | 否 | App Store 文案这类对外材料的草稿与定稿，按版本只追加；不承载条款，不受第 3 节形态约束 |
 | H 历史 | `docs/history/*.md`、`../BrowseCraftCore/docs/history/*.md` | 否 | 只追加，不修改 |
 | E 证据 | 真机日志、构建日志、测试产物 | 否 | 只追加 |
 
@@ -209,6 +210,9 @@ C 类里曾混着的分批、实施与裁决纪事已全部按第 5.1 节三分�
 | [history/Readium-Integration-Handoff.md](history/Readium-Integration-Handoff.md) | Readium 选型与 SwiftSoup fork 的来龙去脉（推进顺序已由 book 接线执行完） |
 | [history/JablePlaybackRule-Handoff.md](history/JablePlaybackRule-Handoff.md) | jable.tv M3U8 抽取失败的根因交接（结论已由 fwq `BC-PLAYBACK-049` 承接） |
 | [history/Phase0-Data-Contract-and-Security-Audit.md](history/Phase0-Data-Contract-and-Security-Audit.md) | CloudKit 阶段 0 的数据合同与 payload 安全审计（身份部分已失效，见其文首注） |
+
+发布材料（R 类）在 `docs/release/`：[release/app-store-listing-1.0.md](release/app-store-listing-1.0.md) 是 1.0 的 App Store 产品页文案。
+Core 仓的归档卷由 `../BrowseCraftCore/docs/README.md` 自己索引。
 
 ## 8. 迁移对照表
 

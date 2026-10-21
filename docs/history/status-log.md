@@ -2053,3 +2053,9 @@ HANDOFF 第 1 节九行只留「欠什么 + 指针」，第 2 节 `BCA-BUILD-003
 - | 2026-10-20 全量代码审计（可读性 / 性能 / 架构，发布前口径）与发布前清单十二项 | ① 清单十二项的代码与文档已于 2026-10-20 当日实施并提交（App 与 Core / Runtime / Domain / APIKit 四个兄弟包各一笔），build 通过、App 目标与四个包的测试全过、模拟器冒烟三处过，逐项状态见 STATUS 第 13 节。② 欠四处失败态的模拟器走查：Release 配置长按来源（#2）、站点书打开失败（#5）、预检挡下的网址提交（#6）、书详情重取失败横幅（#10），都要制造失败才看得到。③ #12 控制台侧七件由用户做：ASC 取消「在 Apple 芯片 Mac 上提供」（裁决）、CloudKit Production schema Deploy、核 GMA 12.14.0 自带隐私清单的跟踪声明、8 个 `InAppPurchasePlan` 对 ASC 5 个内购、GCP 给 Firebase API key 加 iOS bundle 限制、TestFlight 包导出日志看 path 是否 `host#xxxxxxxx`、ATS 例外 `content.mkzcdn.com`（本机 `curl -I` https 得 403 即 TLS 通但防盗链拒绝，规则里图片地址是否已是 https 未核，例外暂留）。④ 七项裁决用户当日全部接受建议，记在报告裁决表与 STATUS 第 13 节。⑤ 发布后路线图七批在报告里，待发布后立项。⑥ 服务器 `internal` 区漫画 `version` 分布待现查：只读脚本在 fwq `site-research/server-queries/catalog_versions_ro.py`（ssh 到服务器 `docker compose exec -T api python -` 喂进去），公共接口已核示例区无漫画 | Claude 文档「BrowseCraft 全量代码审计报告 2026-10-20」（https://claude.ai/artifact/RqbnQE2ZiEEtsQ3aLKbfPq） | [第 13 节](../STATUS.md#13-全量代码审计2026-10-20) |
 - - **归档机必须有 `Config/CatalogEncryption.release.local.xcconfig`**：tracked 的 Release xcconfig 把目录解密密钥置空，只 `#include?` 这份
   gitignore 的本机文件；`scripts/check-ad-configuration.sh` 在 PROD 归档时断言密钥非空且含 `prod-`，否则归档失败（`BCA-BUILD-003`）。
+
+### 第 8 项：AGENTS 号段、docs/release 归类、闭包表
+
+本地 `AGENTS.md`「不可绕过的边界」补齐实际号段（`BCA-BUILD-008`、`BCA-RUNTIME-001` ~ `011`、`BCA-BOOK-001` ~ `003`、`BCA-UI-001` / `002`、`BCA-SYNC-009` ~ `011` 与 `013`），「SwiftSoup fork 同 commit」改为精确锁定官方版本，目录请求的类型名改 `LoadCatalogSourcesUseCase`（它不被 git 跟踪，这里记一笔）。
+`docs/README.md` 第 1 节闭包表：兄弟包根 README 由「五个」改「四个」（Core 从未有根 README，此前 `check-docs.py` 的 glob 空集静默通过；脚本现按四个列并对缺席者报告），新增 R 类 `docs/release/*.md`（发布材料，不承载条款、不受形态约束，A1 / A7 覆盖）；第 7 节补 `docs/release/` 与 Core 归档卷的指针。
+`BrowseCraftTests/Infrastructure/Network/WKWebViewDOMStabilityMeasurementTests.swift` 的注释从 `Documentation/Audit` 改指 `docs/history/2026-09-18-code-audit.md`，第 8 节「Swift 注释已同步更新」的声明从此成立。
