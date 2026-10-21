@@ -90,10 +90,7 @@ python3 scripts/check-docs.py
 工具链：`xcodegen` 只保留 `/opt/homebrew` 下的 arm64 版；Homebrew 从源码编译要求独立的 Command Line Tools 与 Xcode 同版本。
 命令行 build / test 前先看 `xcode-select -p`：机器上装着多个 Xcode 时，指向旧版（16.x）包解析会报 WebUI「incompatible tools version」，
 不改系统设置的话给那条命令加 `DEVELOPER_DIR=<Xcode>.app/Contents/Developer`。
-- **归档必须用 Xcode ≥ 27（硬约束，用户 2026-10-20 裁定）**：Xcode 26.0.1（Swift 6.2.0）对 `@MainActor` 里直接调
-  `SourceUserAgentFallback.shared.perform`、`@MainActor` 方法引用转 `@Sendable`、长整数字面量算式转 `TimeInterval` 三种写法报编译器错，
-  仓库不为它改代码；要在 26.0.1 上跑测试，先在本地做等价改写、不提交（改法见 `docs/history/status-log.md` 2026-10-20 的记录）。
-  `/Users/xiefei/` 这台机器已装 Xcode 27.0（27A266a），10-20 审计时留在 `/Users/trs/` 工作区的 4 个未提交改写文件已不存在。
+- **归档用 Xcode ≥ 27**（`BCA-BUILD-008`，[architecture.md](docs/architecture.md) 第 3 节）：本机版本现查 `xcodebuild -version`；要在 26.0.1 上跑测试，先在本地做等价改写、不提交（改法见 `docs/history/status-log.md` 2026-10-20 的记录）。
 - **归档机必须有 `Config/CatalogEncryption.release.local.xcconfig`**：tracked 的 Release xcconfig 把目录解密密钥置空，只 `#include?` 这份
   gitignore 的本机文件；`scripts/check-ad-configuration.sh` 在 PROD 归档时断言密钥非空且含 `prod-`，否则归档失败（`BCA-BUILD-003`）。
   prod key 本身已存进本机 macOS 登录钥匙串（2026-10-20；服务名「BrowseCraft catalog encryption key (BROWSECRAFT_CATALOG_ENCRYPTION_KEYS, Release)」、账户 `prod-v1`，

@@ -216,6 +216,12 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
   `UIBackgroundModes`. `project.pbxproj` is generated and git-ignored, so anything set through Xcode's
   editors is wiped by the next `scripts/regenerate-project.sh`.
 
+- `BCA-BUILD-008` Archives are built with Xcode ≥ 27 (user ruling 2026-10-20). Xcode 26.0.1 (Swift 6.2.0)
+  rejects three constructs the code base uses — calling `SourceUserAgentFallback.shared.perform` from a
+  `@MainActor` context, passing a `@MainActor` method reference as `@Sendable`, and integer-literal
+  arithmetic converted to `TimeInterval` — and the repository does not work around them. To run the tests
+  on 26.0.1, make the equivalent rewrites locally and do not commit them.
+
 The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad layout is done.
 
 ## 4. Concurrency

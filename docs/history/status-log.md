@@ -2017,3 +2017,23 @@ STATUS 第 10 节新增「第 8 节业务点补齐」一行（implemented / not-
 
 - （Problem-Report-Design 九）实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0023 规则版本表、v0024 报告表；`POST /v1/problem-reports` 的鉴权、限流、清洗、版本对照与清理均已实现并部署）。本节「开发者的排查与查询脚本」5 条与报告表的处理状态列（`triage_status`，目前只在迁移里出现、无读写者）属第二期、尚未实现；服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Problem Reports。
 - （Campaign-And-Rate-Notices-Design 七）实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0021 设备的同意标记与语言、v0022 国家码与每日汇总表；`GET /v1/generation-rates`、登录返回的两个字段、设备登记的两个字段、每日汇总与 GeoIP 库更新均已实现并部署）。本节「活动脚本」一行（幂等入账 `campaign_grant`、`--push` 活动推送、预演）属第二期、尚未实现——`push_devices` 的三列已落、目前无读者；活动开办前先做。服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Push。
+
+### 第 6 项：STATUS 时态句与 Xcode 条款
+
+STATUS.md 被覆盖的旧值（`BCA-DOC-006`；1.0 (50)–(55) 六个 TestFlight 构建已含这些提交，1.0 (55) 10-21 提审）：
+
+- 第 2 节「网址输入页现成规则」行：「APIKit 本地未推送」→「APIKit 已推送」。
+- 第 2 节「预检单页超时」行：「未 build、未跑测试，待模拟器重交 tks / bqge」→「已随 TestFlight 1.0 (50) 起的构建打包，待模拟器或真机重交 tks / bqge」。
+- 第 2 节「漫画详情分段芯片锚点」行：去掉「按 AGENTS 未 build」；「书籍库最新章去重前缀」行：「待下次打包后真机看」→「已随 TestFlight 1.0 (50) 起的构建打包，待真机」。
+- 第 3 节四行（`BCA-RUNTIME-006` ~ `009`）：「未发版」→「已随 TestFlight 1.0 (50) 起的构建打包，待真机」；`BCA-RUNTIME-010` / `011` 两行「真机待下次打包 / 待打包后真机看」同改。
+- 第 13 节「清单 #1 目录解密密钥闸门」行：「未归档」→「1.0 (54) / (55) 的 PROD 归档实跑通过」，更新日期 2026-10-22。
+- 第 13 节「清单 #3」行：「HANDOFF 把「归档必须用 Xcode ≥ 27」写成硬约束，本机已装 Xcode 27.0（27A266a）」→「取号 `BCA-BUILD-008`（architecture.md 第 3 节），HANDOFF 只留指针」，条款列 `未编号` → `BCA-BUILD-008`。原因：硬约束只在 H 类存在，与 `BCA-DOC-011` 相悖。
+- 第 4 节「CloudKit 门禁的 Header 名称拦截…」一行按 `BCA-DOC-005` 拆成两行：候选（optional / superseded / not-started / not-run）与「收窄取值由 13 例固定输入钉住」（required / approved / implemented / full-suite-passed）；原行验证列 `full-suite-passed` 与实施列 `not-started` 同行。
+- 第 2 节品牌等待标记两行单元格「。|」→「。 |」（按「 | 」拆分原只得 7 列）。
+- 第 1 节「SwiftSoup 切回官方」行与第 2 节「漫画阅读器换话手势」行的测试计数句搬出（见下）。
+
+从 STATUS 搬出的句子（逐字）：
+
+- （第 1 节 SwiftSoup 行）Core 305 个测试对官方 2.14.3 全过，Runtime 46 个全过，App 目标 XCTest 86 + Swift Testing 670 全过（`ReadinessSelectorContentSemanticsTests` 的计时用例整套跑时因并行编译偶红、单独重跑 1198 ms 通过，与 HANDOFF 所记一致）。Xcode 27.0 在工程文件与包图被替换时崩过一次（SwiftPM `SPMPIFBuilder.build()`），重开即可，与 App 无关
+- （第 2 节换话手势行）用户 2026-10-21 要求 build 与全量测试：工程重新生成后 build 通过，App 目标 XCTest 86 + Swift Testing 671 全过（计时用例单独重跑通过），五个包全过
+- （HANDOFF 第 2 节 Xcode 条）Xcode 26.0.1（Swift 6.2.0）对 `@MainActor` 里直接调 `SourceUserAgentFallback.shared.perform`、`@MainActor` 方法引用转 `@Sendable`、长整数字面量算式转 `TimeInterval` 三种写法报编译器错，仓库不为它改代码；`/Users/xiefei/` 这台机器已装 Xcode 27.0（27A266a），10-20 审计时留在 `/Users/trs/` 工作区的 4 个未提交改写文件已不存在。—— 条款正文改写进 `BCA-BUILD-008`，本机事实不再记。
