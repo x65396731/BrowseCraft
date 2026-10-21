@@ -1765,3 +1765,4 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日 PortalCore 发布前审计四条合同变化的 App 侧核对：刷新串行化本就成立、`400f1ee5` 加钉住用例（STATUS 第 4 节新增一行 targeted-passed）；`/outcomes` 的 `sourceRemoved` 解码安全、提示发布后做（第 2 节新增一行 not-started）；目录接口 ETag / 304 零影响（目录请求 `reloadIgnoringLocalCacheData`）；`/docs` 只影响调试。
 - 同日构建号 53 → 54，`PROD BrowseCraft` scheme 归档 1.0 (54)（用户「帮我改到 54，用 PROD 打包」；此前 TestFlight 的 1.0 (53) 是 TEST scheme、带测试工具，不能直接提审）。归档核过：环境名 PROD、激励单元 2887798038、目录解密密钥 prod-v1 与服务器一致、二进制无测试工具符号、无测试设备列表。
 - 同日 1.0 (54) 经 `xcodebuild -exportArchive`（app-store-connect、自动签名、上传 dSYM）上传成功，App Store Connect 20:26 显示「正在处理」；导出时第三方预编译框架（Firebase / GoogleMobileAds / FFmpeg 系列）无 dSYM 的告警与 App 自身无关。提审前在真机装 54 核设置页无「测试工具」。
+- 同日 TestFlight 1.0 (54) 处理完成：填「测试内容」（上架用 PROD 包、与 53 代码相同、五条核对点），加内部群组「为什么要测试」（1 人）与外部群组「测什么测跑起来不崩就对了」（3 人，提交 Beta 审核，自动通知），列表状态「正在测试」。
