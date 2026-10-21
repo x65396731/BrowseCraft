@@ -206,12 +206,6 @@ struct HistoryViewModelTests {
                     bookRepository: books,
                     temporaryRepository: temporaries
                 ),
-                restoreReadingHistoryUseCase: RestoreReadingHistoryUseCase(
-                    comicRepository: comics,
-                    videoRepository: videos,
-                    bookRepository: books,
-                    temporaryRepository: temporaries
-                ),
                 reconcileSourceSlotAssignmentsUseCase: ReconcileSourceSlotAssignmentsUseCase(
                     sourceRepository: GRDBSourceRepository(database: database)
                 )

@@ -193,6 +193,8 @@ struct HistoryView: View {
             coverURL: self.viewModel.coverURL(for: entry),
             refererURL: self.viewModel.refererURL(for: entry),
             imageRequestConfig: self.viewModel.imageRequestConfig(for: entry),
+            titleTextOverride: self.viewModel.isAudiobook(entry)
+                ? NSLocalizedString("history_continue_listened", comment: "") : nil,
             action: {
                 self.open(entry)
             }
@@ -252,6 +254,8 @@ struct HistoryView: View {
             } label: {
                 if HistoryViewModel.catalogKind(of: entry) == .video {
                     Label(NSLocalizedString("history_menu_continue_watching", comment: ""), systemImage: "play.fill")
+                } else if self.viewModel.isAudiobook(entry) {
+                    Label(NSLocalizedString("history_menu_continue_listening", comment: ""), systemImage: "play.fill")
                 } else {
                     Label(NSLocalizedString("history_menu_continue_reading", comment: ""), systemImage: "play.fill")
                 }

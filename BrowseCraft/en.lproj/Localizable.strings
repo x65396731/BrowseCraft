@@ -621,6 +621,7 @@
 "history_progress_finished" = "Finished";
 "history_progress_page" = "Page %ld";
 "history_progress_read_to" = "Up to %@";
+"history_progress_listened_to" = "Listened up to %@";
 "history_temporary_video" = "Temporary video";
 "history_temporary_comic" = "Temporary comic";
 "history_delete" = "Delete";

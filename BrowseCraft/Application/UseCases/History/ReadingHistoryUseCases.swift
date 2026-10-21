@@ -238,7 +238,7 @@ struct LoadReadingHistoryEntriesUseCase {
     }
 }
 
-/// 中文注释：一次删除从历史表里拿走的全部记录；撤销时由 `RestoreReadingHistoryUseCase` 原样写回。
+/// 中文注释：一次删除从历史表里拿走的全部记录，按表分组。没有撤销（2026-10-17 裁定），只供调用方记数与日志。
 struct ReadingHistoryRemoval: Sendable {
     var comicHistories: [ComicChapterHistory] = []
     var videoHistories: [VideoWatchHistory] = []
@@ -273,7 +273,7 @@ struct DeleteReadingHistoryEntryUseCase {
     }
 
     /// 中文注释：按历史表分组后批量删除，每张表最多一个写事务；单条删除只是它的特例。
-    /// 返回被删的全部记录，供撤销原样写回。
+    /// 返回被删的全部记录。
     @discardableResult
     func execute(_ entries: [ReadingHistoryEntry]) throws -> ReadingHistoryRemoval {
         let comicTargets: [ComicChapterHistory] = entries.compactMap { $0.kind == .comic ? $0.comicHistory : nil }
@@ -316,43 +316,6 @@ struct DeleteReadingHistoryEntryUseCase {
             merged.append(target)
         }
         return merged
-    }
-}
-
-/// 中文注释：撤销删除，把 `DeleteReadingHistoryEntryUseCase` 拿走的记录原样写回（含原访问时间），
-/// 条目因此回到历史页原来的日期分组。
-struct RestoreReadingHistoryUseCase {
-    private let comicRepository: ComicChapterHistoryRepository
-    private let videoRepository: VideoWatchHistoryRepository
-    private let bookRepository: BookReadingHistoryRepository
-    private let temporaryRepository: TemporaryResourceHistoryRepository
-
-    init(
-        comicRepository: ComicChapterHistoryRepository,
-        videoRepository: VideoWatchHistoryRepository,
-        bookRepository: BookReadingHistoryRepository,
-        temporaryRepository: TemporaryResourceHistoryRepository
-    ) {
-        self.comicRepository = comicRepository
-        self.videoRepository = videoRepository
-        self.bookRepository = bookRepository
-        self.temporaryRepository = temporaryRepository
-    }
-
-    func execute(_ removal: ReadingHistoryRemoval) throws {
-        for history: ComicChapterHistory in removal.comicHistories {
-            try self.comicRepository.save(history)
-        }
-        // 中文注释：视频仓储保存时按作品覆盖旧记录；先写旧的、后写新的，留下的是最近一条。
-        for history: VideoWatchHistory in removal.videoHistories.sorted(by: { $0.updatedAt < $1.updatedAt }) {
-            try self.videoRepository.save(history)
-        }
-        for history: BookReadingHistory in removal.bookHistories {
-            try self.bookRepository.save(history)
-        }
-        for history: TemporaryResourceHistory in removal.temporaryHistories {
-            try self.temporaryRepository.save(history)
-        }
     }
 }
 

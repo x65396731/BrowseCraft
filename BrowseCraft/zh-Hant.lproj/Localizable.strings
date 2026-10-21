@@ -621,6 +621,7 @@
 "history_progress_finished" = "已看完";
 "history_progress_page" = "第 %ld 頁";
 "history_progress_read_to" = "讀到 %@";
+"history_progress_listened_to" = "聽到 %@";
 "history_temporary_video" = "臨時影片";
 "history_temporary_comic" = "臨時漫畫";
 "history_delete" = "刪除";

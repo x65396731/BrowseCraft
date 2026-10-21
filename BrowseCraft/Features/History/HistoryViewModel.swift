@@ -253,7 +253,8 @@ final class HistoryViewModel {
             guard let chapter: String = TrimmedText.nonEmpty(entry.bookHistory?.chapterTitle) else {
                 return nil
             }
-            return String(format: NSLocalizedString("history_progress_read_to", comment: ""), chapter)
+            let key: String = self.isAudiobook(entry) ? "history_progress_listened_to" : "history_progress_read_to"
+            return String(format: NSLocalizedString(key, comment: ""), chapter)
         case .temporary:
             return entry.temporaryHistory?.kind == .comic
                 ? NSLocalizedString("history_temporary_comic", comment: "")
@@ -352,6 +353,15 @@ final class HistoryViewModel {
 
     func source(for history: BookReadingHistory) -> Source? {
         return self.source(for: history.sourceID) ?? history.fallbackSource()
+    }
+
+    /// 中文注释：条目所属来源是否整站有声——与库页同一口径（`ResolveLibrarySourcePresentationUseCase.isAudiobookSource`），
+    /// 有声书的措辞改成「上次听到 / 听到 / 继续听」；来源已不在（只剩快照）时按快照判。
+    func isAudiobook(_ entry: ReadingHistoryEntry) -> Bool {
+        guard entry.kind == .book, let source: Source = self.source(for: entry) else {
+            return false
+        }
+        return self.resolveLibrarySourcePresentationUseCase.isAudiobookSource(for: source)
     }
 
     /// 条目的来源：当前来源优先，没有时用历史里存的来源快照。

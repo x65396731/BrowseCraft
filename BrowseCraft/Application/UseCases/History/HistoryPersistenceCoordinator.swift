@@ -13,18 +13,15 @@ struct ReadingHistoryEntriesTransfer: Sendable {
 actor HistoryPersistenceCoordinator {
     private let loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase
     private let deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase
-    private let restoreReadingHistoryUseCase: RestoreReadingHistoryUseCase
     private let reconcileSourceSlotAssignmentsUseCase: ReconcileSourceSlotAssignmentsUseCase
 
     init(
         loadReadingHistoryEntriesUseCase: LoadReadingHistoryEntriesUseCase,
         deleteReadingHistoryEntryUseCase: DeleteReadingHistoryEntryUseCase,
-        restoreReadingHistoryUseCase: RestoreReadingHistoryUseCase,
         reconcileSourceSlotAssignmentsUseCase: ReconcileSourceSlotAssignmentsUseCase
     ) {
         self.loadReadingHistoryEntriesUseCase = loadReadingHistoryEntriesUseCase
         self.deleteReadingHistoryEntryUseCase = deleteReadingHistoryEntryUseCase
-        self.restoreReadingHistoryUseCase = restoreReadingHistoryUseCase
         self.reconcileSourceSlotAssignmentsUseCase = reconcileSourceSlotAssignmentsUseCase
     }
 
@@ -35,12 +32,8 @@ actor HistoryPersistenceCoordinator {
         )
     }
 
-    /// 中文注释：按作品删除，返回被删的全部记录，撤销时交回 `restore(_:)`。
+    /// 中文注释：按作品删除，返回被删的全部记录（没有撤销，只供记数与日志）。
     func delete(_ entries: ReadingHistoryEntriesTransfer) throws -> ReadingHistoryRemoval {
         return try self.deleteReadingHistoryEntryUseCase.execute(entries.values)
-    }
-
-    func restore(_ removal: ReadingHistoryRemoval) throws {
-        try self.restoreReadingHistoryUseCase.execute(removal)
     }
 }
