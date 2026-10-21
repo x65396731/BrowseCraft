@@ -109,8 +109,7 @@
 | 活动脚本 | 一次活动一条命令：先给所有已注册账号幂等入账（新记账原因 `campaign_grant`，同一活动同一账号只入一次），确认完成后再按 `--push` 发活动推送；支持只报人数的预演 |
 
 一次活动的顺序固定为：预演报人数 → 入账并报实际人数 → 控制台发布弹窗（先发测试设备确认）→ 发活动推送 → 活动结束时控制台停用。
-
-实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0021 设备的同意标记与语言、v0022 国家码与每日汇总表；`GET /v1/generation-rates`、登录返回的两个字段、设备登记的两个字段、每日汇总与 GeoIP 库更新均已实现并部署）。本节「活动脚本」一行（幂等入账 `campaign_grant`、`--push` 活动推送、预演）属第二期、尚未实现——`push_devices` 的三列已落、目前无读者；活动开办前先做。服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Push。
+服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Push；表、接口与活动脚本各自的实施状态见 [STATUS.md](../STATUS.md) 第 11 节。
 
 ## 八、App 实施清单
 

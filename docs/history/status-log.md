@@ -2007,3 +2007,13 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：
 
 - - `BrowseCraft/Features/Library/Book/Site/BookLibraryRowView.swift`：新建书脊行（封面 + 书脊线 + 耳机 + 三行文字 + 行尾爱心 + 长按菜单）；旧卡片 `BookLibraryCardView.swift` 删除。
 - - `BrowseCraft/Shared/UI/LibraryTitleColor.swift`：最后一个引用随旧卡片消失，一并删。
+
+### 第 3 项登记与第 5 项：两段「实施状态（2026-10-21）」分流，闸门加 A14 提示
+
+STATUS 第 10 节新增「第 8 节业务点补齐」一行（implemented / not-run，检查点 `03049b2b`）；第 12 节「第一期之后」行补 `triage_status` 一句、第 11 节「PortalCore 侧实施其余」行补 `push_devices` 三列与「检查点为本仓合同提交」，两行更新日期改 2026-10-22（`BCA-DOC-006`）。
+`check-docs.py` 新增 A14 `check_revision_record_hint`（只提示）：C 类正文里与日期同行的实施 / 实测 / 修订句，剥掉「（日期 用户裁定）」括注后再找关键词；现报 1 处（Core `docs/README.md:15`，描述归档本身，不处理）。
+
+从 C 类搬出的段落（`BCA-DOC-007`，逐字；来源 10-21 提交「两份服务端合同各加一段『实施状态（2026-10-21）』」）：
+
+- （Problem-Report-Design 九）实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0023 规则版本表、v0024 报告表；`POST /v1/problem-reports` 的鉴权、限流、清洗、版本对照与清理均已实现并部署）。本节「开发者的排查与查询脚本」5 条与报告表的处理状态列（`triage_status`，目前只在迁移里出现、无读写者）属第二期、尚未实现；服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Problem Reports。
+- （Campaign-And-Rate-Notices-Design 七）实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0021 设备的同意标记与语言、v0022 国家码与每日汇总表；`GET /v1/generation-rates`、登录返回的两个字段、设备登记的两个字段、每日汇总与 GeoIP 库更新均已实现并部署）。本节「活动脚本」一行（幂等入账 `campaign_grant`、`--push` 活动推送、预演）属第二期、尚未实现——`push_devices` 的三列已落、目前无读者；活动开办前先做。服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Push。

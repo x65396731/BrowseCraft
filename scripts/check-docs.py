@@ -2,7 +2,7 @@
 """BrowseCraft 文档闸门。
 
 形态与条款规则的定义点在 docs/README.md 第 3–5 节；本脚本只执行，不定义。
-A1–A11 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4；A12 / A13 见 docs/README.md 第 5 节与
+A1–A11 的口径见 docs/history/2026-09-19-docs-architecture-audit.md 第 6 节 D4；A12 / A13 / A14 见 docs/README.md 第 5 节与
 docs/design/Analytics-Events-Design.md、Logging-Design.md。
 提交任何 C 类文档、docs/STATUS.md 或 AGENTS.md 的改动前跑一次；任一项失败即不得提交。
 
@@ -108,6 +108,10 @@ HASH_RE = re.compile(r"\b(?=[0-9a-f]{7,40}\b)(?=[a-f]*\d)[0-9a-f]{7,40}\b")
 TESTCOUNT_RE = re.compile(r"\d+ 项 ?[/+] ?\d+|Swift Testing \d+|Ran \d+ tests|\d+ suites|\d+ 条通过|\d+ 条跳过|\d+ 例固定输入|\d+ 个用例")
 # A6：日志式章节标题 = 标题里带日期。
 DATED_HEADING_RE = re.compile(r"^#{1,6} .*(20\d\d-\d\d-\d\d|20\d\d 年|20\d{5,6}|（20\d\d-\d\d-\d\d）)")
+# A14（只提示）：正文里与日期同行的实施 / 实测 / 修订句。纯「（日期 用户裁定）」括注不算——先把括注剥掉再找关键词。
+REVISION_DATE_RE = re.compile(r"20\d\d-\d\d-\d\d")
+REVISION_RULING_RE = re.compile(r"[（(][^（）()]*20\d\d-\d\d-\d\d[^（）()]*(裁定|用户定|用户确认|用户要求|用户选定|裁决)[^（）()]*[）)]|用户 20\d\d-\d\d-\d\d (裁定|定|确认|要求|选定)")
+REVISION_KEYWORD_RE = re.compile(r"实施状态|已上线|已部署|已实施|已落地|尚未实现|未实施|已 build|已推送|未推送|未发版|全取 A|修订|实测|走查|已完成|已修")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # 行内代码里的 `[...](...)` 是示例或正则，不是链接（归档里有一段 m3u8 正则会误报）。
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
@@ -218,6 +222,22 @@ def check_c_form(rep):
     rep.note("A4", f"扫 {len(C_FILES)} 份 C 类")
     rep.note("A5", f"扫 {len(C_FILES)} 份 C 类")
     rep.note("A6", f"扫 {len(C_FILES)} 份 C 类")
+
+
+def check_revision_record_hint(rep):
+    """A14：C 类正文里带日期的实施 / 实测 / 修订句，只提示不判失败（docs/README.md 第 5.1 节）。
+
+    2026-10-20 复审刚把这类句子搬出，10-21 又加回两段「实施状态（日期）」；A4 只查头部行、A6 只查标题，正文段落放过。
+    """
+    hits = []
+    for rel in C_FILES:
+        for n, line in lines_outside_fences(read(rel)):
+            if not REVISION_DATE_RE.search(line):
+                continue
+            stripped = REVISION_RULING_RE.sub("", line)
+            if REVISION_DATE_RE.search(stripped) and REVISION_KEYWORD_RE.search(stripped):
+                hits.append(f"{rel}:{n}")
+    rep.note("A14", f"{len(hits)} 处" + ("：" + "、".join(hits[:6]) + ("…" if len(hits) > 6 else "") if hits else ""))
 
 
 def check_links(rep):
@@ -647,6 +667,7 @@ def main():
     check_tracked(rep, defs)
     check_retirable_sections(rep)
     check_analytics(rep)
+    check_revision_record_hint(rep)
 
     titles = {
         "A0": "本地 AGENTS.md 在扫描集内（不在就跳过并报告）",
@@ -663,6 +684,7 @@ def main():
         "A11": "承载定义点的文档被 git 跟踪",
         "A12": "STATUS.md 可退休的节（只提示，BCA-DOC-016）",
         "A13": "埋点字典、问题码、日志类别与代码一致、带注释、调用边界与崩溃诊断入口（BCA-OBS）",
+        "A14": "C 类正文里带日期的实施 / 实测 / 修订句（只提示，BCA-DOC-007）",
     }
     failed = {c for c, _, _ in rep.failures}
     skipped = {c for c, _ in rep.skipped}

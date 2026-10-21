@@ -203,9 +203,8 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 5. 按规则汇总查询：输入 `sourceId`（可选 `ruleRevision`），输出这条规则当初的生成任务与结局（经 `generated_rule_index` 按指纹对到任务，
    有花了 token 的失败归档时一并列出）、该站最近的生成成功与失败数、最近 24 小时的报告数（按问题码与站点侧分开）。
 
-第 4、5 步只做脚本，不做自动告警。
-
-实施状态（2026-10-21，PortalCore 发布前审计 M3）：服务端表与接口已上线（迁移 v0023 规则版本表、v0024 报告表；`POST /v1/problem-reports` 的鉴权、限流、清洗、版本对照与清理均已实现并部署）。本节「开发者的排查与查询脚本」5 条与报告表的处理状态列（`triage_status`，目前只在迁移里出现、无读写者）属第二期、尚未实现；服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Problem Reports。
+第 4、5 步只做脚本，不做自动告警。服务端落点见 PortalCore `docs/architecture/backend-module-layout.md` §4 Problem Reports；
+表、接口与脚本各自的实施状态见 [STATUS.md](../STATUS.md) 第 12 节。
 
 ## 十、埋点登记
 
