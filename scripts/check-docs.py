@@ -66,6 +66,8 @@ ALL_FILES = C_FILES + S_FILES + H_FILES
 # BCA-DOC-011 的规模阈值。唯一声明点在此，文档只说「有上限」不复述数值——写两处必然漂移。
 HANDOFF_MAX_LINES = 250
 HANDOFF_MAX_HASHES = 5
+# 行数守不住字节：2026-10-22 审计时 143 行 / 26.5 KB，长的是单行里的实测叙事。瘦身后 21 KB，上限留余量。
+HANDOFF_MAX_BYTES = 24_000
 
 # A10：C 类文档点名的代码符号必须真的存在。白名单只许收敛，见文件头部。
 EXTERNAL_SYMBOLS_FILE = "scripts/docs-external-symbols.txt"
@@ -276,7 +278,11 @@ def check_handoff(rep):
     if n_hashes > HANDOFF_MAX_HASHES:
         rep.fail("A9", HANDOFF,
                  f"{n_hashes} 个 commit 哈希超过 {HANDOFF_MAX_HASHES}：状态性数字应现查，不该记死在这里")
-    rep.note("A9", f"{n_lines} 行 / {n_hashes} 个哈希")
+    n_bytes = len(text.encode("utf-8"))
+    if n_bytes > HANDOFF_MAX_BYTES:
+        rep.fail("A9", HANDOFF,
+                 f"{n_bytes} 字节超过 {HANDOFF_MAX_BYTES}：行数没超但单行在长，实测过程与控制台清单应进 status-log")
+    rep.note("A9", f"{n_lines} 行 / {n_hashes} 个哈希 / {n_bytes} 字节")
 
 
 def load_tracked_files():
