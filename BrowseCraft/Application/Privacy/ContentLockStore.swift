@@ -1,3 +1,4 @@
+import BrowseCraftLog
 import Foundation
 import Observation
 
@@ -59,7 +60,13 @@ final class ContentLockStore {
               self.isAuthenticating == false else {
             return
         }
-        guard await self.authenticate(reason: reason) else {
+        let result: DeviceOwnerAuthenticationResult = await self.authenticateResult(reason: reason)
+        guard result == .succeeded else {
+            AppLog.notice(.security, "content-lock-toggle-rejected", [
+                "enable": .bool(enabled),
+                "result": .code(String(describing: result)),
+                "method": .code(String(describing: self.method))
+            ])
             return
         }
         self.preferenceStore.setContentLockEnabled(enabled)
@@ -68,6 +75,10 @@ final class ContentLockStore {
             self.isUnlocked = true
             self.didLastUnlockFail = false
         }
+        // 中文注释：内容锁定与解锁记 notice（Logging-Design.md 第 8 节）。
+        AppLog.notice(.security, enabled ? "content-lock-enabled" : "content-lock-disabled", [
+            "method": .code(String(describing: self.method))
+        ])
     }
 
     /// 返回这次验证的结果；不需要验证（未开启、已解锁、正在验证）时返回 nil，调用方据此上报埋点。
@@ -82,8 +93,13 @@ final class ContentLockStore {
         if result == .succeeded {
             self.isUnlocked = true
             self.didLastUnlockFail = false
+            AppLog.notice(.security, "content-unlocked", ["method": .code(String(describing: self.method))])
         } else {
             self.didLastUnlockFail = true
+            AppLog.notice(.security, "content-unlock-failed", [
+                "result": .code(String(describing: result)),
+                "method": .code(String(describing: self.method))
+            ])
         }
         return result
     }
@@ -101,6 +117,9 @@ final class ContentLockStore {
     func sceneDidEnterBackground() {
         self.isSceneTransitionFromAuthentication = false
         self.isObscured = true
+        if self.isEnabled, self.isUnlocked {
+            AppLog.notice(.security, "content-locked", ["reason": .code("background")])
+        }
         self.isUnlocked = false
         self.didLastUnlockFail = false
     }
@@ -114,10 +133,6 @@ final class ContentLockStore {
         self.isObscured = false
         self.refreshAvailableMethod()
         return isReturningFromAuthentication == false
-    }
-
-    private func authenticate(reason: String) async -> Bool {
-        return await self.authenticateResult(reason: reason) == .succeeded
     }
 
     private func authenticateResult(reason: String) async -> DeviceOwnerAuthenticationResult {

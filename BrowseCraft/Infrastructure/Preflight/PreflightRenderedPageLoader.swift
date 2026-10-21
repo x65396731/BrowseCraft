@@ -29,7 +29,7 @@ struct PreflightRenderedPageLoader: PreflightRenderedPageAcquiring, Sendable {
         let startedAt: ContinuousClock.Instant = clock.now
         do {
             let page: PreflightAcquiredPage = try await operation.acquire(request)
-            AppLog.info(.generation, "preflight-page-acquired", [
+            AppLog.info(.network, "preflight-page-acquired", [
                 "loader": .code("rendered"),
                 "host": .host(request.url),
                 "status": .int(page.statusCode ?? 0),
@@ -39,7 +39,7 @@ struct PreflightRenderedPageLoader: PreflightRenderedPageAcquiring, Sendable {
             ])
             return page
         } catch {
-            AppLog.error(.generation, "preflight-page-failed", [
+            AppLog.error(.network, "preflight-page-failed", [
                 "loader": .code("rendered"),
                 "host": .host(request.url),
                 "ms": .duration(clock.now - startedAt),

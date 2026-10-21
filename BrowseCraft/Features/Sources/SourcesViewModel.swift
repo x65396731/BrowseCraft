@@ -609,6 +609,7 @@ final class SourcesViewModel {
         do {
             self.setCatalogSources(try await self.catalogService.loadSources())
             self.lastCatalogSyncDate = self.now()
+            AppLog.notice(.rule, "catalog-sources-loaded", ["count": .int(self.catalogSources.count), "trigger": .code("catalog-open")])
             await self.applyCatalogRuleUpdates(self.catalogSources, trigger: .catalogOpen)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "catalog-source-refresh-error")
@@ -640,6 +641,7 @@ final class SourcesViewModel {
             let catalogSources: [CatalogSource] = try await self.catalogService.loadSources()
             self.setCatalogSources(catalogSources)
             self.lastCatalogSyncDate = self.now()
+            AppLog.notice(.rule, "catalog-sources-loaded", ["count": .int(catalogSources.count), "trigger": .code("foreground")])
             // 中文注释：启动时的那次跟随也走这里，`CatalogUpdateTrigger` 没有单独的启动取值，一并记作 foreground。
             await self.applyCatalogRuleUpdates(catalogSources, trigger: .foreground)
         } catch {
@@ -894,6 +896,13 @@ final class SourcesViewModel {
             source.userID = self.currentUserID
             let wasSelected: Bool = self.selectedSourceID == source.id
             await self.load()
+            // 中文注释：来源增删与启用记 notice（Logging-Design.md 第 8 节）；覆盖已添加的来源时 `replaced` 为 true。
+            AppLog.notice(.rule, "catalog-source-added", [
+                "source": .id(source.id),
+                "kind": .enumValue(catalogSource.kind),
+                "replaced": .bool(existingSource != nil),
+                "preserveSelection": .bool(preserveSelection)
+            ])
             if let entry: SourceAddEntry = entry {
                 AppAnalytics.shared.logSourceAdded(
                     source: self.source(id: source.id) ?? source,
@@ -982,6 +991,12 @@ final class SourcesViewModel {
                 userID: self.currentUserID
             )
             self.applyDeletion(result)
+            AppLog.notice(.rule, "sources-deleted", [
+                "count": .int(result.receipts.count),
+                "source": .id(sourceIDs.count == 1 ? sourceIDs.first : nil),
+                "undoable": .bool(sourceIDs.count == 1 && result.receipts.isEmpty == false),
+                "entry": .enumValue(entry)
+            ])
             if sourceIDs.count == 1, let receipt: SourceDeletionReceipt = result.receipts.first {
                 self.showUndo(for: receipt, entry: entry)
             } else {
@@ -1006,6 +1021,11 @@ final class SourcesViewModel {
             userID: self.currentUserID
         )
         self.applyDeletion(result)
+        AppLog.notice(.rule, "sources-deleted", [
+            "count": .int(result.receipts.count),
+            "source": .id(sourceIDs.count == 1 ? sourceIDs.first : nil),
+            "undoable": .bool(false)
+        ])
         await self.notifyDeletionChanges(for: result.receipts)
     }
 
@@ -1059,6 +1079,7 @@ final class SourcesViewModel {
                 self.selectSource(id: receipt.source.id, savesLibraryState: false, entry: nil)
             }
             self.sourceContentRevision += 1
+            AppLog.notice(.rule, "source-deletion-undone", ["source": .id(receipt.source.id)])
             AppAnalytics.shared.logSourceDeletionUndone(receipt.source, result: .success)
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .list, event: "source-undo-delete-error")
@@ -1222,6 +1243,11 @@ final class SourcesViewModel {
                   activatedSource.accessState == .active else {
                 throw SourceRepositoryError.invalidSourceSlotReplacement
             }
+            AppLog.notice(.rule, "source-activated", [
+                "source": .id(activatedSource.id),
+                "replaced": .id(replacingSourceID),
+                "entry": .enumValue(entry)
+            ])
             AppAnalytics.shared.logSourceActivated(
                 activatedSource,
                 entry: entry,

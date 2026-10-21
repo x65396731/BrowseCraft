@@ -60,6 +60,8 @@ final class VideoPlayerViewModel {
     /// 中文注释：直链播放器按进度差累计的实际播放时长（与广告积分同一种累计法），`playback_closed` 用。
     private var lastProgressTimeForPlayedDuration: TimeInterval?
     private var playedDuration: TimeInterval = 0
+    /// 中文注释：`video-player-opened` 只记第一次准备；登录后重取媒体地址的再次准备记 `video-playback-reloaded`。
+    private var didLogPlayerOpened: Bool = false
 
     init(
         source: Source,
@@ -206,11 +208,41 @@ final class VideoPlayerViewModel {
                 self.duration = history.duration
             }
 
+            self.logPlayerPrepared()
             self.saveCurrentProgress(force: true)
             self.startAutosaveIfNeeded()
         } catch {
+            self.logPlayerPrepared()
             AppLog.error(.playback, "video-player-prepare-failed", ["error": .error(error)])
             self.errorMessage = RuleExecutionErrorClassifier.userMessage(for: error)
+        }
+    }
+
+    /// 中文注释：播放器状态记 info（Logging-Design.md 第 8 节）：打开 / 换集后重取、就绪、失败、关闭；进度不记。
+    private func logPlayerPrepared() {
+        let event: String = self.didLogPlayerOpened ? "video-playback-reloaded" : "video-player-opened"
+        self.didLogPlayerOpened = true
+        AppLog.info(.playback, event, [
+            "source": .id(self.source.id),
+            "episode": .id(self.reference.episodeKey),
+            "entry": .enumValue(self.playbackEntry),
+            "status": .code(Self.statusCode(self.reference.status)),
+            "mediaKind": .enumValue(self.reference.candidateMediaKind),
+            "native": .bool(self.nativeMediaURL != nil),
+            "resumeMs": .duration(self.currentPlaybackTime)
+        ])
+    }
+
+    private static func statusCode(_ status: SourceVideoPlaybackStatus) -> String {
+        switch status {
+        case .playable:
+            return "playable"
+        case .pageOnly:
+            return "page-only"
+        case .restricted(let restriction):
+            return "restricted-\(restriction.rawValue)"
+        case .failed:
+            return "failed"
         }
     }
 
@@ -345,6 +377,12 @@ final class VideoPlayerViewModel {
                 try await playbackRuntime.loadPlayback(input)
             }
             self.reference = output.reference
+            AppLog.info(.playback, "video-playback-resolved", [
+                "source": .id(self.source.id),
+                "episode": .id(output.reference.episodeKey),
+                "status": .code(Self.statusCode(output.reference.status)),
+                "mediaKind": .enumValue(output.reference.candidateMediaKind)
+            ])
             return true
         } catch {
             RuleExecutionErrorClassifier.log(error: error, stage: .playback, event: failureEvent)
@@ -505,10 +543,21 @@ final class VideoPlayerViewModel {
         }
         self.startedPlayerType = playerType
         self.startedAt = self.now()
+        AppLog.info(.playback, "video-player-ready", [
+            "source": .id(self.source.id),
+            "episode": .id(self.reference.episodeKey),
+            "playerType": .enumValue(playerType)
+        ])
         AppAnalytics.shared.logPlaybackStarted(source: self.source, kind: .video, playerType: playerType, entry: self.playbackEntry)
     }
 
     func reportPlaybackFailed(playerType: PlayerType, failure: PlaybackFailureCode) {
+        AppLog.info(.playback, "video-player-failed", [
+            "source": .id(self.source.id),
+            "episode": .id(self.reference.episodeKey),
+            "playerType": .enumValue(playerType),
+            "failure": .enumValue(failure)
+        ])
         AppAnalytics.shared.logPlaybackFailed(source: self.source, kind: .video, playerType: playerType, failure: failure)
     }
 
@@ -526,6 +575,7 @@ final class VideoPlayerViewModel {
     }
 
     func reportPlaybackCompleted() {
+        AppLog.info(.playback, "video-playback-completed", ["source": .id(self.source.id), "episode": .id(self.reference.episodeKey)])
         AppAnalytics.shared.logPlaybackCompleted(kind: .video, playerType: .native)
     }
 
@@ -543,6 +593,12 @@ final class VideoPlayerViewModel {
         let duration: TimeInterval = playerType == .native
             ? self.playedDuration
             : self.now().timeIntervalSince(startedAt)
+        AppLog.info(.playback, "video-player-closed", [
+            "source": .id(self.source.id),
+            "episode": .id(self.reference.episodeKey),
+            "playerType": .enumValue(playerType),
+            "ms": .duration(duration)
+        ])
         AppAnalytics.shared.logPlaybackClosed(kind: .video, playerType: playerType, duration: duration)
     }
 

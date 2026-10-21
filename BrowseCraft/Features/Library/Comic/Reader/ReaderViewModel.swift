@@ -223,6 +223,7 @@ final class ReaderViewModel {
         self.chapterAwaitingDisplay = nil
         self.pendingChapterNavigationDirection = nil
         self.isLoading = false
+        AppLog.info(.reader, "comic-chapter-switch-cancelled", ["source": .id(self.source.id), "item": .id(self.item.id)])
     }
 
     /// 中文注释：本话加载失败或没有页面时，顶部下拉重试本话；没有当前话时按进入时的那一话重取。
@@ -429,6 +430,14 @@ final class ReaderViewModel {
                 self.chapterSwitchDirection = nil
                 self.chapterSwitchTask = nil
             }
+            // 中文注释：阅读器状态记 info（Logging-Design.md 第 8 节）：这一话没取到，首次加载 / 重试 / 换话都算。
+            AppLog.info(.reader, "comic-chapter-load-failed", [
+                "source": .id(self.source.id),
+                "item": .id(self.item.id),
+                "chapter": .path(chapterURLString),
+                "switching": .bool(holdsUntilShown),
+                "error": .error(error)
+            ])
             let classifiedError: RuleExecutionError = RuleExecutionErrorClassifier.classified(error)
             RuleExecutionErrorClassifier.log(error: classifiedError, stage: .reader, event: "reader-load-error")
             switch classifiedError {
@@ -479,6 +488,14 @@ final class ReaderViewModel {
         self.visitedChapterURLs.insert(chapter.chapterURL)
         guard self.openedAt != nil else {
             self.openedAt = self.now()
+            // 中文注释：阅读器状态记 info（Logging-Design.md 第 8 节）：打开、换话、关闭；翻页不记。
+            AppLog.info(.reader, "comic-reader-opened", [
+                "source": .id(self.source.id),
+                "item": .id(self.item.id),
+                "chapter": .path(chapter.chapterURL),
+                "pages": .int(chapter.pageResources.count),
+                "entry": .enumValue(self.openEntry)
+            ])
             AppAnalytics.shared.logReaderOpened(source: self.source, kind: .comic, entry: self.openEntry)
             return
         }
@@ -487,6 +504,13 @@ final class ReaderViewModel {
             return
         }
         let navigation: ChapterNavigation = self.pendingChapterNavigationDirection == .previous ? .previous : .next
+        AppLog.info(.reader, "comic-chapter-changed", [
+            "source": .id(self.source.id),
+            "item": .id(self.item.id),
+            "chapter": .path(chapter.chapterURL),
+            "pages": .int(chapter.pageResources.count),
+            "navigation": .enumValue(navigation)
+        ])
         AppAnalytics.shared.logChapterOpened(source: self.source, kind: .comic, navigation: navigation)
     }
 
@@ -500,6 +524,12 @@ final class ReaderViewModel {
             return
         }
         self.didReportClose = true
+        AppLog.info(.reader, "comic-reader-closed", [
+            "source": .id(self.source.id),
+            "item": .id(self.item.id),
+            "ms": .duration(self.now().timeIntervalSince(openedAt)),
+            "chapters": .int(self.visitedChapterURLs.count)
+        ])
         AppAnalytics.shared.logReaderClosed(
             kind: .comic,
             duration: self.now().timeIntervalSince(openedAt),

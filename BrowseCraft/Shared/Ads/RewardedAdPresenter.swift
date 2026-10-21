@@ -9,6 +9,20 @@ enum RewardedAdPresentationResult: Equatable {
     case unavailable(String)
     case failed(String)
 
+    /// 中文注释：日志用的结局码，不带 message（message 可能含错误原文与网址）。
+    var logCode: String {
+        switch self {
+        case .completed:
+            return "completed"
+        case .skipped:
+            return "skipped"
+        case .unavailable:
+            return "unavailable"
+        case .failed:
+            return "failed"
+        }
+    }
+
     var debugDescription: String {
         switch self {
         case .completed:
@@ -46,9 +60,8 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
         guard AppAdConfiguration.hasAdMobApplicationID else {
             let message: String = "GADApplicationIdentifier is missing."
             self.lastMessage = message
-            #if DEBUG
-            AppLog.debug(.ad, "ad-playback-presenter-unavailable", ["message": .text("\(message)")])
-            #endif
+            // 中文注释：激励广告结局记 notice（Logging-Design.md 第 8 节）：没播出来也是结局。
+            AppLog.notice(.ad, "ad-playback-presenter-unavailable", ["reason": .code("missing-app-id")])
             return .unavailable(message)
         }
 
@@ -56,9 +69,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
         guard adUnitID.isEmpty == false else {
             let message: String = "Rewarded ad unit ID is empty for \(AppAdConfiguration.environmentName)."
             self.lastMessage = message
-            #if DEBUG
-            AppLog.debug(.ad, "ad-playback-presenter-unavailable", ["message": .text("\(message)")])
-            #endif
+            AppLog.notice(.ad, "ad-playback-presenter-unavailable", ["reason": .code("empty-ad-unit")])
             return .unavailable(message)
         }
 
@@ -103,9 +114,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
                     Task { @MainActor in
                         self?.didEarnReward = true
                         self?.lastMessage = "Reward earned: \(rewardText)"
-                        #if DEBUG
-                        AppLog.debug(.ad, "ad-playback-presenter-reward-earned", ["message": .text("\(rewardText)")])
-                        #endif
+                        AppLog.notice(.ad, "ad-playback-presenter-reward-earned", ["reward": .code(rewardText)])
                     }
                 }
             }
@@ -114,9 +123,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
             self.isPresenting = false
             let message: String = "Rewarded ad failed to load: \(error.localizedDescription)"
             self.lastMessage = message
-            #if DEBUG
-            AppLog.debug(.ad, "ad-playback-presenter-load-failed", ["message": .text("\(message)")])
-            #endif
+            AppLog.notice(.ad, "ad-playback-presenter-load-failed", ["error": .error(error)])
             return .failed(message)
         }
     }
@@ -148,9 +155,7 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        #if DEBUG
-        AppLog.debug(.ad, "ad-playback-presenter-dismissed", ["didEarnReward": .text("\(self.didEarnReward)")])
-        #endif
+        AppLog.notice(.ad, "ad-playback-presenter-dismissed", ["didEarnReward": .bool(self.didEarnReward)])
         self.finish(result: self.didEarnReward ? .completed : .skipped)
     }
 
@@ -160,16 +165,12 @@ final class RewardedAdPresenter: NSObject, ObservableObject, FullScreenContentDe
     ) {
         let message: String = "Rewarded ad failed to present: \(error.localizedDescription)"
         self.lastMessage = message
-        #if DEBUG
-        AppLog.debug(.ad, "ad-playback-presenter-present-failed", ["message": .text("\(message)")])
-        #endif
+        AppLog.notice(.ad, "ad-playback-presenter-present-failed", ["error": .error(error)])
         self.finish(result: .failed(message))
     }
 
     private func finish(result: RewardedAdPresentationResult) {
-        #if DEBUG
-        AppLog.debug(.ad, "ad-playback-presenter-finish", ["result": .text("\(result.debugDescription)")])
-        #endif
+        AppLog.notice(.ad, "ad-playback-presenter-finish", ["result": .code(result.logCode)])
         self.rewardedAd = nil
         self.isPresenting = false
         self.didEarnReward = false

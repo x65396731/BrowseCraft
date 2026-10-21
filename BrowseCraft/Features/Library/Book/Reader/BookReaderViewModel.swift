@@ -91,6 +91,14 @@ final class BookReaderViewModel {
         return self.audioNavigator != nil
     }
 
+    /// 中文注释：站点书的选择；本地书为 nil。日志字段取来源 id 用。
+    private var siteSelection: SiteBookChapterSelection? {
+        guard case .site(let selection) = self.subject else {
+            return nil
+        }
+        return selection
+    }
+
     var title: String {
         return self.loadedTitle ?? self.subject.title
     }
@@ -172,7 +180,21 @@ final class BookReaderViewModel {
             }
             await self.loadBookmarks()
             self.state = .ready
+            // 中文注释：阅读器 / 播放器状态记 info（Logging-Design.md 第 8 节）：打开、换章、状态变化、关闭；翻页不记。
+            AppLog.info(self.isAudiobook ? .playback : .reader, self.isAudiobook ? "audio-player-opened" : "book-reader-opened", [
+                "subject": .code(self.siteSelection == nil ? "local" : "site"),
+                "source": .id(self.siteSelection?.source.id),
+                "book": .id(self.bookID),
+                "chapters": .int(self.publication?.readingOrder.count ?? 0),
+                "entry": .enumValue(self.openEntry)
+            ])
         } catch {
+            AppLog.info(.reader, "book-reader-open-failed", [
+                "subject": .code(self.siteSelection == nil ? "local" : "site"),
+                "source": .id(self.siteSelection?.source.id),
+                "book": .id(self.bookID),
+                "error": .error(error)
+            ])
             if case .site(let selection) = self.subject {
                 RuleFailureDiagnostics.report(
                     error: error,
@@ -279,6 +301,12 @@ final class BookReaderViewModel {
         navigator.play()
         if self.didReportAudioPlaybackStarted == false, case .site(let selection) = self.subject {
             self.didReportAudioPlaybackStarted = true
+            AppLog.info(.playback, "audio-player-started", [
+                "source": .id(selection.source.id),
+                "book": .id(self.bookID),
+                "index": .int(self.audioChapterIndex),
+                "count": .int(self.audioChapterCount)
+            ])
             AppAnalytics.shared.logPlaybackStarted(
                 source: selection.source,
                 kind: .audiobook,
@@ -313,8 +341,18 @@ final class BookReaderViewModel {
         }
         self.didReportClose = true
         if self.isAudiobook {
+            AppLog.info(.playback, "audio-player-closed", [
+                "book": .id(self.bookID),
+                "ms": .duration(self.audioPlayedDuration),
+                "index": .int(self.audioChapterIndex)
+            ])
             AppAnalytics.shared.logPlaybackClosed(kind: .audiobook, playerType: .audio, duration: self.audioPlayedDuration)
         } else {
+            AppLog.info(.reader, "book-reader-closed", [
+                "book": .id(self.bookID),
+                "ms": .duration(Date().timeIntervalSince(openedAt)),
+                "chapters": .int(self.visitedChapterKeys.count)
+            ])
             AppAnalytics.shared.logReaderClosed(
                 kind: .book,
                 duration: Date().timeIntervalSince(openedAt),
@@ -505,6 +543,12 @@ final class BookReaderViewModel {
             }
             return
         }
+        AppLog.info(.reader, "book-chapter-changed", [
+            "source": .id(selection.source.id),
+            "book": .id(self.bookID),
+            "chapter": .path(chapterKey),
+            "navigation": .enumValue(self.pendingChapterNavigation ?? .auto)
+        ])
         AppAnalytics.shared.logChapterOpened(
             source: selection.source,
             kind: .book,
@@ -580,6 +624,22 @@ final class BookReaderViewModel {
 
     /// 中文注释：AudioNavigator 报来的播放状态：更新界面与锁屏控制，并累计广告积分。
     func audioPlaybackDidChange(_ info: MediaPlaybackInfo) {
+        // 中文注释：引擎按时间步频繁回调；只在集序号或播放状态真的变了时记 info，进度本身不记。
+        let previous: MediaPlaybackInfo = self.audioPlayback
+        if info.resourceIndex != previous.resourceIndex {
+            AppLog.info(.playback, "audio-chapter-changed", [
+                "book": .id(self.bookID),
+                "index": .int(info.resourceIndex),
+                "count": .int(self.audioChapterCount)
+            ])
+        }
+        if info.state != previous.state {
+            AppLog.info(.playback, "audio-player-state-changed", [
+                "book": .id(self.bookID),
+                "index": .int(info.resourceIndex),
+                "state": .code(String(describing: info.state))
+            ])
+        }
         self.audioPlayback = info
         if self.requestedAudioChapterIndex == info.resourceIndex {
             self.requestedAudioChapterIndex = nil
@@ -601,6 +661,7 @@ final class BookReaderViewModel {
             return
         }
         self.didFinishAudiobook = true
+        AppLog.info(.playback, "audio-playback-completed", ["book": .id(self.bookID), "index": .int(info.resourceIndex)])
         AppAnalytics.shared.logPlaybackCompleted(kind: .audiobook, playerType: .audio)
     }
 
@@ -613,6 +674,13 @@ final class BookReaderViewModel {
             return
         }
         self.audioChapterFailures[index] = failure.kind
+        AppLog.info(.playback, "audio-chapter-failed", [
+            "book": .id(self.bookID),
+            "index": .int(index),
+            "kind": .code(String(describing: failure.kind)),
+            "status": .int(failure.statusCode ?? 0),
+            "host": .host(failure.chapterURL)
+        ])
         if index == self.audioChapterIndex {
             self.audioNavigator?.pause()
         }
@@ -650,6 +718,7 @@ final class BookReaderViewModel {
             return
         }
         self.audioChapterFailures[index] = nil
+        AppLog.info(.playback, "audio-chapter-retry", ["book": .id(self.bookID), "index": .int(index)])
         previous.pause()
         let locator: Locator? = await publication.locate(publication.readingOrder[index])
         let navigator: AudioNavigator = AudioNavigator(publication: publication, initialLocation: locator)
@@ -689,6 +758,11 @@ final class BookReaderViewModel {
         }
         self.requestedAudioChapterIndex = index
         self.didFinishAudiobook = false
+        AppLog.info(.playback, "audio-chapter-requested", [
+            "book": .id(self.bookID),
+            "index": .int(index),
+            "count": .int(publication.readingOrder.count)
+        ])
         _ = await navigator.go(to: publication.readingOrder[index])
         navigator.play()
     }

@@ -148,15 +148,20 @@ final class CoinWalletStore: RewardedAdRewardCoordinating {
     @discardableResult
     func pollAfterAdReward() async -> Bool? {
         let startRevision: Int = self.revision
-        for delay: Duration in Self.adRewardPollDelays {
+        // 中文注释：到账轮询的开始与结局记 notice（Logging-Design.md 第 8 节）；余额本身不记。
+        AppLog.notice(.coin, "ad-reward-poll-started", ["revision": .int(startRevision)])
+        for (attempt, delay) in Self.adRewardPollDelays.enumerated() {
             guard (try? await self.sleep(delay)) != nil else {
+                AppLog.notice(.coin, "ad-reward-poll-cancelled", ["attempt": .int(attempt + 1)])
                 return nil
             }
             await self.refresh()
             if self.revision > startRevision {
+                AppLog.notice(.coin, "ad-reward-credited", ["attempt": .int(attempt + 1), "revision": .int(self.revision)])
                 return true
             }
         }
+        AppLog.notice(.coin, "ad-reward-poll-timed-out", ["attempts": .int(Self.adRewardPollDelays.count)])
         return false
     }
 

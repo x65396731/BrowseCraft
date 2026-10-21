@@ -186,12 +186,11 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
             return
         }
 
-        #if DEBUG
-        AppLog.debug(.playback, "video-web-player-did-fail", [
-            "url": .text("\(self.safeLogURL(webView.url))"),
+        // 中文注释：主文档加载到一半失败是播放器状态变化，记 info（Logging-Design.md 第 8 节）。
+        AppLog.info(.playback, "video-web-player-did-fail", [
+            "url": .path(webView.url),
             "error": .error(error)
         ])
-        #endif
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation?, withError error: Error) {
@@ -211,11 +210,8 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        #if DEBUG
-        AppLog.debug(.playback, "video-web-player-web-content-terminated", [
-            "url": .text("\(self.safeLogURL(webView.url))")
-        ])
-        #endif
+        // 中文注释：网页进程被系统杀掉后自动重载，记 info 便于对上「播放页突然空白」的反馈。
+        AppLog.info(.playback, "video-web-player-web-content-terminated", ["url": .path(webView.url)])
         webView.reload()
     }
 

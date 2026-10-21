@@ -31,7 +31,7 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
         let startedAt: ContinuousClock.Instant = clock.now
         do {
             let page: PreflightAcquiredPage = try await self.performAcquire(request)
-            AppLog.info(.generation, "preflight-page-acquired", [
+            AppLog.info(.network, "preflight-page-acquired", [
                 "loader": .code("http"),
                 "host": .host(request.url),
                 "status": .int(page.statusCode ?? 0),
@@ -41,7 +41,7 @@ struct PreflightHTTPPageLoader: PreflightPageAcquiring {
             ])
             return page
         } catch {
-            AppLog.error(.generation, "preflight-page-failed", [
+            AppLog.error(.network, "preflight-page-failed", [
                 "loader": .code("http"),
                 "host": .host(request.url),
                 "ms": .duration(clock.now - startedAt),
@@ -236,7 +236,7 @@ final class PreflightURLSessionDelegate: NSObject, URLSessionTaskDelegate, @unch
             )
             completionHandler(redirected)
         } catch {
-            AppLog.notice(.generation, "preflight-redirect-rejected", ["error": .error(error)])
+            AppLog.notice(.network, "preflight-redirect-rejected", ["error": .error(error)])
             self.markRejectedRedirect()
             completionHandler(nil)
         }
