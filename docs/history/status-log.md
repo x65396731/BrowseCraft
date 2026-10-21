@@ -2070,3 +2070,4 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 
 - CloudKit 控制台 `iCloud.com.xiefei.AnyPortal`：Production 的 `HistoryEntry` 恰 21 个自定义字段（`coverURL`、`deletedAt`、`detailURL`、`duration`、`episodeIndex`、`itemID`、`kind`、`locatorJSON`、`pageIndex`、`playbackTime`、`schemaVersion`、`sourceID`、`sourceIndex`、`title`、`totalProgression`、`unitKey`、`unitTitle`、`unitURL`、`updatedAt`、`visitedAt`、`workKey`），单字段索引全部 None；控制台显示的「27 fields」含 6 个系统字段。Development 与 Production 的 Indexes 页搜 `HistoryEntry` 都无条目（对照：搜 `FavoriteItem` 有）。History-Resume-Sync 合同第 24 行「21 个字段，都不建索引」成立，合同不动。
 - App Store Connect：AnyPortal「iOS 1.0 正在等待审核」（构建 55）；「App 内购买项目」页 5 个项目（`site.unlock.v2.1 / .5 / .10 / .30`、`remove.ads`）都在「草稿 (5)」、状态「准备提交」，1.0 版本页没有内购一栏——内购没有随 1.0 送审。HANDOFF「App Store 首发」行改为这条欠项，处置方式由用户定。
+- 用户 2026-10-22 裁定：内购现在不动，等 1.0 过审后在内购页逐个提交审核；不把 1.0 从审核移除。
