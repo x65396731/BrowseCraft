@@ -58,6 +58,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 收藏页重设计：封面卡片行、类型筛选（全部与三类一直显示）、按天分组、左滑取消收藏与撤销、来源状态 | 未编号 | required | approved | implemented | full-suite-passed | a5dc313 | 2026-10-03 |
 | 收藏页重设计的模拟器走查：筛选与某类为 0、按天分组、左滑与长按取消收藏及撤销、在库中查看来源、三种来源状态、空状态与恢复失败下拉重试、深色、库页爱心同步 | 未编号 | required | approved | implemented | simulator-passed | a5dc313 | 2026-10-03 |
 | 历史页重设计：继续卡片、看到哪里与视频进度、类型筛选、按天分组、按作品删除与撤销、来源状态；封面与撤销提示条与收藏页共用 | 未编号 | required | approved | implemented | full-suite-passed | 9ebb107 | 2026-10-03 |
+| 历史页有声书措辞与库页对齐（10-22 审计待确认项，用户裁定）：继续卡片「上次听到」、看到哪里「听到 · 章名」、长按「继续听」，判据同库页 `isAudiobookSource`；同批删掉去撤销后无人调用的 `RestoreReadingHistoryUseCase` 与协调器 `restore`；按 AGENTS 未 build、未跑测试 | 未编号 | required | approved | implemented | not-run | 1a776573 | 2026-10-22 |
 | 设置页重设计：自绘大标题、账号卡（余额与看广告 +N、未登录系统登录按钮与不计奖励的看广告）、高级版入口卡、同步与存储 / 隐私与诊断 / 关于三组卡片行、退出登录确认框；下线书签页、复制诊断码行与两张图标 | 未编号 | required | approved | implemented | full-suite-passed | 3129a73 | 2026-10-03 |
 | 设置页重设计的模拟器走查：未登录浅色与深色、系统登录按钮、未登录看广告（加载中、播完提示不计 coin）、已登录浅色与深色（临时注入）、诊断码与账号 ID 复制、退出确认框、进入 coin 记录子页 | 未编号 | required | approved | implemented | simulator-passed | 3129a73 | 2026-10-03 |
 | coin 记录页重设计：隐藏底栏只留返回、余额卡与服务端价格说明、按天分组的卡片行、获得蓝底与消耗灰底图标、获得色 `gain`、骨架、失败与空状态可下拉、翻页与到底提示 | 未编号 | required | approved | implemented | full-suite-passed | ea2fefc | 2026-10-03 |
@@ -140,8 +141,8 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 删除来源连带删除历史与收藏：用户删除时删三张历史表、给收藏写删除标记并入队；iCloud 应用远端删除时删本机历史并清空当前选择；删除后底部可撤销并原样写回；删除与撤销后刷新历史、收藏与库页；底部文案改写 | `BCA-DB-004` `BCA-DB-005` | required | superseded | reverted | full-suite-passed | c2b2437 | 2026-10-17 |
 | 删除来源连带删除的模拟器走查：左滑删除非内置来源与长按删除内置来源，历史、收藏、库页爱心随删除消失、随撤销回来，撤销后改回当前来源 | `BCA-DB-004` `BCA-DB-005` | required | superseded | reverted | simulator-passed | c2b2437 | 2026-10-17 |
 | 删除来源时保留历史与收藏（用户 2026-10-17 裁定，取代连带删除）：用户删除与应用 iCloud 远端删除都只软删来源、清空库的当前选择，三张历史表与收藏不动、收藏不入队；被删来源的条目照旧用快照打开（来源位置可被绕过，用户接受）；撤销只写回来源与库状态；来源页底部说明三语；RootView 只重新载入历史与收藏；仓储与远端删除测试、来源页 ViewModel 测试断言改为保留 | `BCA-DB-004` `BCA-DB-005` | required | approved | implemented | targeted-passed | c44934a | 2026-10-17 |
-| 续看位置同步到 iCloud：每部作品一条续看记录（云端 `HistoryEntry` 21 个字段，已部署到 Production）、本机账本对比找改动、来源先于历史下载、删除与恢复、退到后台时同步、云同步页第三行改为作品数 | `BCA-SYNC-009` | required | approved | implemented | full-suite-passed | 7102bba | 2026-10-04 |
-| 续看位置同步的模拟器走查（真实账号，Development 环境，单台设备）：迁移后正常启动、新增来源并产生一条视频历史、退到后台触发同步并上传、云同步页第三行显示作品数、来源已删除的历史不计入也不上传、删除历史后退到后台上传删除标记；两台设备互相接续与书的阅读位置未走到 | `BCA-SYNC-009` | required | approved | implemented | simulator-passed | 7102bba | 2026-10-04 |
+| 续看位置同步到 iCloud：每部作品一条续看记录（云端 `HistoryEntry` 21 个字段，已部署到 Production）、本机账本对比找改动、来源先于历史下载、删除与恢复、退到后台时同步、云同步页第三行改为作品数 | 未编号 | required | approved | implemented | full-suite-passed | 7102bba | 2026-10-22 |
+| 续看位置同步的模拟器走查（真实账号，Development 环境，单台设备）：迁移后正常启动、新增来源并产生一条视频历史、退到后台触发同步并上传、云同步页第三行显示作品数、来源已删除的历史不计入也不上传、删除历史后退到后台上传删除标记；两台设备互相接续与书的阅读位置未走到 | 未编号 | required | approved | implemented | simulator-passed | 7102bba | 2026-10-22 |
 | 删除账号 App 侧（审核指南 5.1.1(v)；服务端 PortalCore 设计稿第 12 节第 5 步）：设置页入口与说明页、重新验证 Apple 后调删号接口、本机与 iCloud 清理、换访客身份、待清 iCloud 标记、凭据状态监听、三语文案 | 未编号 | required | pending-review | implemented | targeted-passed | fda3bb6 | 2026-10-15 |
 | 删号后恢复购买：恢复路径按 appAccountToken 分批、外来 token 遇 accountMismatch 跳过，购买页已拥有判断放宽（删除账号设计第九节，D4 在 App 侧的落点） | 未编号 | required | pending-review | implemented | targeted-passed | a06be2d | 2026-10-15 |
 | 删号后恢复购买的真机走查（iPhone 15，iOS 26.7.1，Xcode 直装、沙盒账户）：被删账号名下的 Sandbox 交易单独成批提交，服务端认领到当前账号，权益快照站点位置上限 2，界面显示已恢复且不提示属于别的账号 | 未编号 | required | approved | implemented | device-passed | b0e2a0d | 2026-10-15 |

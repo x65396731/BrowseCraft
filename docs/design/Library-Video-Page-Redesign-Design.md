@@ -53,7 +53,7 @@
 
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
-| 封面 | 2:3，宽随两列算出（iPhone 17 Pro 约 170×255pt）；`ItemThumbnailImageView` 走现有封面管线，请求配置取规则的图片请求配置；无封面退回 `VideoListPlaceholder` | 圆角 14，不描边、不投影 |
+| 封面 | 2:3，宽随两列算出（iPhone 17 Pro 约 170×255pt）；`ItemThumbnailImageView` 走现有封面管线，请求配置取规则的图片请求配置（来源已判定用手机 UA 时封面也换手机 UA，`BCA-RUNTIME-010`）；无封面退回 `VideoListPlaceholder` | 圆角 14，不描边、不投影 |
 | 封面左下 · 集数徽章 | `latestText`（「更新至第 12 集」「完结」…）做成胶囊徽章，一行可截断；没有 `latestText` 就不出徽章 | 固定色：底 `bannerAccent` #F2A65A、字 `bannerIconInk` #141210，`caption2` bold，高 20、左右 8、离封面边 8；与类型横幅的图标圆同一做法 |
 | 封面右上 · 爱心 | `TabFavorites` / `TabFavoritesOutline` 18pt 在 32pt 圆里；未收藏白色空心，已收藏实心用视频强调色 #F2A65A（不再用粉色） | 圆底黑 40%；热区 44pt；点了即收藏 / 取消，不弹确认 |
 | 标题 | 作品名 `subheadline` semibold，主文字色（不再用 `libraryTitleText`），两行定高，同一行的卡片底边对齐 | 封面下 8pt |
@@ -168,7 +168,7 @@
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：三份芯片代码合成一份，按 `CatalogKindStyle` 取色。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：改两列同形。
 - `BrowseCraft/Features/Library/Components/LibraryStateBanner.swift`：警示色淡底。
-- `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条，翻页失败另加 `nextPageErrorMessage` 与第四条词条 `library_pagination_failed`（`LibraryPaginationFooterView` 的 `failureDetail`），库页的系统弹框只剩收藏切换失败在用。
+- `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条，翻页失败另加 `nextPageErrorMessage` 与第四条词条 `library_pagination_failed`（`LibraryPaginationFooterView` 的 `failureDetail`），库页的系统弹框只剩收藏切换失败与 `load()` 自身的异常（持久化 / 快照读取失败，不是站点侧列表失败）在用，后者仍写 `errorMessage` 弹系统提示框。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 底行允许只写时刻。
 - 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条、长按菜单的「取消收藏」（`favorites_unfavorite`）与「继续看」（`history_menu_continue_watching`）都沿用现有词条；新增长按菜单「打开」「收藏」「打开作品」（`library_card_open` / `library_card_favorite` / `library_tile_open_work`）。
 

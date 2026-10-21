@@ -2059,3 +2059,9 @@ HANDOFF 第 1 节九行只留「欠什么 + 指针」，第 2 节 `BCA-BUILD-003
 本地 `AGENTS.md`「不可绕过的边界」补齐实际号段（`BCA-BUILD-008`、`BCA-RUNTIME-001` ~ `011`、`BCA-BOOK-001` ~ `003`、`BCA-UI-001` / `002`、`BCA-SYNC-009` ~ `011` 与 `013`），「SwiftSoup fork 同 commit」改为精确锁定官方版本，目录请求的类型名改 `LoadCatalogSourcesUseCase`（它不被 git 跟踪，这里记一笔）。
 `docs/README.md` 第 1 节闭包表：兄弟包根 README 由「五个」改「四个」（Core 从未有根 README，此前 `check-docs.py` 的 glob 空集静默通过；脚本现按四个列并对缺席者报告），新增 R 类 `docs/release/*.md`（发布材料，不承载条款、不受形态约束，A1 / A7 覆盖）；第 7 节补 `docs/release/` 与 Core 归档卷的指针。
 `BrowseCraftTests/Infrastructure/Network/WKWebViewDOMStabilityMeasurementTests.swift` 的注释从 `Documentation/Audit` 改指 `docs/history/2026-09-18-code-audit.md`，第 8 节「Swift 注释已同步更新」的声明从此成立。
+
+### 审计待确认六小项（用户 2026-10-22 裁定「都处理」）
+
+代码（`1a776573`）：删 `RestoreReadingHistoryUseCase` 与 `HistoryPersistenceCoordinator.restore`（10-17 去撤销后无人调用；`ReadingHistoryRemoval` 仍作删除返回值）；历史页有声书措辞改「上次听到 / 听到 · 章名 / 继续听」，新词条 `history_progress_listened_to` 三语，判据同库页；`DetailPageComponents` 与 `WebsiteCacheCleaner` 两处注释改正。未 build、未跑测试。
+文档：History-Page 合同 2.2 / 2.4 / 2.5 / 三 / 验收清单补有声书措辞与「没有撤销写回」；Library-Video 实现位置补 `load()` 自身异常仍弹系统提示框；六份库页 / 详情合同的封面行各补「来源已判定用手机 UA 时封面也换手机 UA（`BCA-RUNTIME-010`）」。
+STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两行条款列 `BCA-SYNC-009` → `未编号`（原因：`BCA-SYNC-009` 定义的是不得进云的数据，续看同步本身没有条款），更新日期 2026-10-04 → 2026-10-22；第 2 节新增「历史页有声书措辞与库页对齐」一行。

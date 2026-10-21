@@ -73,7 +73,7 @@
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
 | 背景 | 同一张海报铺满、模糊半径 30、压黑 45%，底部 80pt 渐变到页面底；高度 = 安全区 + 236 | 固定深色，浅深模式一样；没有封面时纯色 #2B2117 |
-| 海报 | 108×162、圆角 14、轻投影；走 `ItemThumbnailImageView`，请求配置取规则的图片请求配置；规则的 detail `cover` 优先，没有或加载失败都退到列表封面（`fallbackURLString`），再没有 `VideoListPlaceholder`（与库页同一张，同为 2:3） | 左边距 20，底边与标题区底对齐 |
+| 海报 | 108×162、圆角 14、轻投影；走 `ItemThumbnailImageView`，请求配置取规则的图片请求配置（来源已判定用手机 UA 时封面也换手机 UA，`BCA-RUNTIME-010`）；规则的 detail `cover` 优先，没有或加载失败都退到列表封面（`fallbackURLString`），再没有 `VideoListPlaceholder`（与库页同一张，同为 2:3） | 左边距 20，底边与标题区底对齐 |
 | 标题 | `title2` heavy，最多三行，固定浅色字 #F4F3EF | 列表项标题优先，没有才用 detail `title` |
 | 元数据行 | `caption` 次浅字 #D9C6B2，「2024 · 日本 · 动画 · 日语」：按 metadata 的 key 取 year / releaseDate / region / genre / language，有几个写几个，一个都没有就不出这行；最多两行 | 不写 label，只写 value |
 | 状态徽章 | `latestText` 做成胶囊，与库页集数徽章同一个；没有 `latestText` 而 metadata 有 status 时用 status | 底 #F2A65A 字 #141210，高 20 |

@@ -78,7 +78,7 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
-| 封面 | 72×96（3:4），manifest 封面 → 列表封面 → `BookCoverPlaceholder`；请求配置取规则的图片请求配置 | 圆角 8，左缘 2pt 书脊线黑 18% |
+| 封面 | 72×96（3:4），manifest 封面 → 列表封面 → `BookCoverPlaceholder`；请求配置取规则的图片请求配置（来源已判定用手机 UA 时封面也换手机 UA，`BCA-RUNTIME-010`） | 圆角 8，左缘 2pt 书脊线黑 18% |
 | 书名 | `SiteBookTitle.preferred`，`title2` bold 最多三行 | 主文字色 |
 | 作者 | manifest `author`，`subheadline` 次级色 | 有才出 |
 | 来源 · 分类 | `source.name` + 当前分类名，`caption` 次级色 | 一直 |

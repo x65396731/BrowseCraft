@@ -75,7 +75,7 @@
 
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
-| 封面 | 2:3，宽随三列算出（iPhone 17 Pro 约 108×162pt）；`ItemThumbnailImageView` 走现有封面管线，请求配置取规则的图片请求配置；无封面退回 `ComicListPlaceholder` | 圆角 10，不描边、不投影 |
+| 封面 | 2:3，宽随三列算出（iPhone 17 Pro 约 108×162pt）；`ItemThumbnailImageView` 走现有封面管线，请求配置取规则的图片请求配置（来源已判定用手机 UA 时封面也换手机 UA，`BCA-RUNTIME-010`）；无封面退回 `ComicListPlaceholder` | 圆角 10，不描边、不投影 |
 | 封面左下 · 进度角标 | 这部读过时「读到 4-2」（章节名经 `ComicChapterTitleParser` 缩成编号，解不出就写原章节名一行截断）；没读过不出 | 固定色胶囊：底 #B79CFF 字 #141210，`caption2` bold，高 20、左右 8、离封面边 6；与视频集数徽章同一种做法、换漫画的固定取值 |
 | 封面右上 · 爱心 | 只在已收藏时显示：`TabFavorites` 14pt 实心漫画固定紫 #B79CFF 在 26pt 黑 40% 圆里；未收藏不压爱心 | 收藏 / 取消走长按菜单，与视频库同一套菜单 |
 | 标题 | 作品名 `footnote` semibold 主文字色，两行定高，同一行的卡片底边对齐 | 封面下 6pt |

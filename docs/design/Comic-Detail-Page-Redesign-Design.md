@@ -83,7 +83,7 @@
 
 | 位置 | 内容 | 取值 |
 | --- | --- | --- |
-| 封面 | 112×150、圆角 12、轻投影；走 `ItemThumbnailImageView`（带退路地址）同一条封面管线，请求配置取规则的 detail 封面请求配置；detail `cover` 优先，没有用列表封面，再没有 `ComicListPlaceholder`（与库页同一张，2:3 居中铺满 3:4 框） | 左边距 20；头部从固定返回 / 收藏按钮的安全区 inset 之下开始（上边距 8），淡底向上铺满 inset 与状态栏 |
+| 封面 | 112×150、圆角 12、轻投影；走 `ItemThumbnailImageView`（带退路地址）同一条封面管线，请求配置取规则的 detail 封面请求配置（来源已判定用手机 UA 时封面也换手机 UA，`BCA-RUNTIME-010`）；detail `cover` 优先，没有用列表封面，再没有 `ComicListPlaceholder`（与库页同一张，2:3 居中铺满 3:4 框） | 左边距 20；头部从固定返回 / 收藏按钮的安全区 inset 之下开始（上边距 8），淡底向上铺满 inset 与状态栏 |
 | 标题 | `title2` heavy 主文字色，最多三行 | 列表项标题优先，没有才用 detail `title` |
 | 作者行 | `subheadline` 次级色，一行 | `author`；没有不出，不再用来源名填空 |
 | 徽章行 | 状态（`status`）漫画类型色淡底 + 类型色字；分类（`category`）与语言（`language`）次级填充底 + 次级字 | 胶囊高 22、`caption` semibold；有几个出几个，一个都没有不出这行 |
