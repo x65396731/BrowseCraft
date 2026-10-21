@@ -19,7 +19,7 @@ Sign in with Apple identity token
 ```
 
 `CloudAccountScope` 仍只隔离 CloudKit 队列、change token、CKSyncEngine state、metadata 和账户
-世代。iCloud 账户与 Sign in with Apple 账户、App Store 购买账户是三个不同边界。
+世代；取值只有两种：登录前的 `local.default`，登录后的 `cloud:<AppUser UUID 的哈希>`。iCloud 账户与 Sign in with Apple 账户、App Store 购买账户是三个不同边界。
 
 ## 登录与本地数据
 
@@ -30,15 +30,19 @@ Sign in with Apple identity token
   Library 和临时资源数据到后端用户空间。
 - `BCA-SYNC-002` 复制过程不得迁移 `hasRemovedAds`、Source Slot 权益或 `user_storekit_transactions`。
 - `BCA-SYNC-003` Apple 登录返回不同 AppUser 时必须清除旧账户内存权益，并重新从 Portal 获取新账户权益。
+- `BCA-SYNC-013` 会话刷新必须串行：`PortalSessionCoordinator` 是 actor，取 token、回前台、账号接口 401 强制刷新等全部刷新入口都汇到
+  `refreshIfNeeded`，`operationInFlight` 跨挂起点串行，同一个 refresh token 只发一次刷新请求，网络层不自动重试——服务端把已轮换的
+  refresh token 再用判为重放并撤销整条链（含刚换到的新 token），任何并发的第二次刷新都会把本机踢回未登录。用例 `PortalSessionCoordinatorTests`。
+- 删除账号时的身份切换（换访客身份、清本机与 iCloud）见 [删除账号](Account-Deletion-Design.md)。
 
 ## CloudKit 关联
 
 CloudKit `AppUserIdentity/default` 只能记录已经通过 Portal 登录的后端 AppUser UUID：
 
-- 未登录不能创建或关联该记录。
+- 未登录不能创建、读取或关联该记录（`associateForUserInitiatedAccess` 先 `requirePortalSignIn`）；云同步页的开关在未登录时禁用。
 - 云端 UUID 与当前 Portal AppUser 一致时允许启用同步。
 - UUID 不一致时阻断同步，并要求用户通过 Sign in with Apple 切换到对应账户。唯一例外：云端记录的 UUID 是本机早先未登录时
-  写上去的临时本地 UUID（本机 `app_users` 有它的行、且本机从未见过它作为 Portal 会话用户，判据在
+  写上去的临时本地 UUID（本机 `users` 表有它的行、且本机从未见过它作为 Portal 会话用户，判据在
   `CloudAppUserIdentityAssociationCoordinator.isFormerLocalUser`）时，直接用当前 Portal AppUser 覆盖该记录，不要求换账户登录。
 - `BCA-SYNC-004` 禁止通过“采用 CloudKit UUID”获得 Portal Session 或 IAP 权益；持有 UUID 不构成认证。
 

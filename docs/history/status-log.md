@@ -1804,3 +1804,21 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：
   `VideoGenerationInputPreflight` / `VideoGenerationInputURL` 从「app-only」里拿掉（Runtime 的 reducer 也用）；`AddCatalogSourceUseCase` fetching → `LoadCatalogSourcesUseCase`。
 - （HANDOFF 第 1 节）「未随已发构建打包」「下次打包后真机」两行、「发现」一行的「合同已入库、代码未动」「其余账号此刻拿到空目录（接口实测 15 / 0 条）」与「下一会话建议顺序」里的「首发送审前的硬前置」
   都已被 TestFlight 1.0 (50)–(55) 与 10-21 提审推翻，改为现行欠项。
+
+### 第 4 项：四件无落点的事给落点
+
+- 会话刷新串行取号 `BCA-SYNC-013`，定义点在 AccountScopedDatabaseMigration-Memo，Account-Deletion 7.1 改为引用；STATUS 第 4 节「刷新 token 请求串行化」行条款列 `未编号` → `BCA-SYNC-013`，更新日期 2026-10-21 → 2026-10-22（`BCA-DOC-006`）。
+- 预检超时 25 / 30 秒写进 Generation-Input 第四节（引用 fwq `APP-MEMO-044`）；`Idempotency-Key` 写进 Generation-Input 第六节并在 STATUS 第 2 节新立 not-started 一行（检查点取当前 HEAD）；`BC-PLAYBACK-066` 在 RuleExecutionSemantics 第三节补引用点。
+- 顺手改正的不符：`app_users` → `users`；`AddCatalogSourceUseCase.requestedFeatures` → `LoadCatalogSourcesUseCase.requestedFeatures`；`URLResolvingService.listURL(page:)` 签名；`BCA-RUNTIME-007` 的挑战页判定改为「不看状态码先判」；UA 回退记在单键字典里；「只清余额显示」改为 `CoinWalletStore.markSignedOut`；补 `local.default` / `cloud:<hash>` 两种作用域、未登录「不读也不建」与开关禁用。
+
+从 C 类搬出的句子（`BCA-DOC-007`，逐字）：
+
+- （RuleExecutionSemantics `BCA-RUNTIME-005`）（2026-10-06 toonily：章节页家用出口 403 `cf-mitigated: challenge`、服务器出口 200）—— 去掉日期与「家用」。
+- （RuleExecutionSemantics `BCA-RUNTIME-006`）依据 fwq `BC-LIST-124`：0 起页码站（rouman5、3kor）第 1 页在地址里写 0，引擎交付 `startPage: 0`。
+- （RuleExecutionSemantics `BCA-RUNTIME-007`）依据：2026-09-29 xjortho 拦桌面 UA 返回 403 —— 去掉日期。已知边界：…到 2026-10-10 无实例，出现时再按搜索场景单独处理。
+- （RuleExecutionSemantics `BCA-RUNTIME-008`）依据：fwq `BC-SEARCH-022` ⑤ 已知边界——关键词恰为某部作品全名时，站点从搜索直接跳进作品页（piaotia「龙藏」），按结果列表解析为空，用户看到「没有结果」。量面（fwq `scripts/measure_search_fullname_redirect.py`，零网络，1,091 份搜索核实报告 / 129 主机）：首查用全名直跳作品页的 5 主机全部交付了搜索——sto55、piaotia、uukanshu、23qb（书）、mangakatana（漫画）；影视 0 例，本条不覆盖影视，出现实例再加。结果页靠 meta refresh / 脚本跳到作品页的 0 例。
+- （RuleExecutionSemantics `BCA-RUNTIME-009`）依据：fwq 量面 3 主机目录自身分页（笔趣阁 `index_{page}.html` 每页约 100 章、oop.tw `?p={page}` 每页 30 章、ffppt），此前目录截在第一页却报成功（读书需求文档需求五后半）。
+- （RuleExecutionSemantics `BCA-RUNTIME-010`）依据：站点按 UA 分桌面 / 手机两套模板（seyouxiaoshuo 同一分类页桌面 UA `common-list` 0、iPhone UA 16）；困难档云端 `/scrape` 官方文档不能指定 UA，挑战站被升到实体机浏览器、拿回手机模板（huanmengacg `common-list` 52），规则按手机模板写成，
+- （RuleExecutionSemantics https 升级一条）引用点：fwq `BC-BOOK-050`（sfacg 作品页 302 到 http 的移动站再 301 回 https，URLSession 在 http 那一跳被 ATS 拒，而规则生成引擎的客户端无 ATS 跟得过去）；
+- （Generation-Input 七）- 模拟器没走到：检查中的四步进度卡（检查太快抓不到）、真实提交的各结果态（要扣 coin）、粘贴按钮（模拟器剪贴板不同步）、coin 不足。—— 同句在 STATUS 第 2 节走查行。
+- （Account-Deletion 九）用户裁定（2026-10-15）送审前做完，做法如下。—— 改为括注。

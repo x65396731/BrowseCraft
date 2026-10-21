@@ -138,9 +138,9 @@ App 区分不了「没登录 iCloud」和「关了本 App 的 iCloud」（账户
 
 那台设备回到未登录的时机：access token 在本机看来还没过期时，`PortalSessionCoordinator` 不会主动刷新，App 会一直显示已登录。因此：
 账号接口（`CoinWalletStore` 的余额刷新，在启动、回到前台、打开设置页时都会调）回 401 时，强制刷新一次会话
-（`PortalSessionCoordinator.handleAuthorizationRejected()`）——
+（`PortalSessionCoordinator.handleAuthorizationRejected()`；强制刷新同样受 `BCA-SYNC-013` 串行约束，已有刷新在飞时不发第二个请求）——
 - 刷新被服务端拒绝（refresh token 无效 / 用户停用）：按现有逻辑清会话与权益缓存、回到未登录，并通知设置页刷新；
-- 刷新成功：用新 token 重试一次，仍 401 就只清余额显示、不再循环；
+- 刷新成功：用新 token 重试一次，仍 401 就只把钱包标成未登录并清余额（`CoinWalletStore.markSignedOut`，不动会话）、不再循环；
 - 网络错误：不清会话。
 其他 Bearer 接口不在此处理：余额刷新调用最频繁，一次就足以把会话带回正确状态。
 
@@ -184,7 +184,7 @@ App 区分不了「没登录 iCloud」和「关了本 App 的 iCloud」（账户
 D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交易（PortalCore 删号设计稿第 6.2 节与第 14 节第 3、4 条；
 购买、更新、恢复三条路径共用同一个权益刷新接口，例外对三条都生效）。App 原先在本地就按 appAccountToken 等于当前账号筛交易，
 删号后在新账号点「恢复购买」找不回任何东西。服务端的批量校验遇到「token 指向的账号仍然存在」的交易会整批拒绝，
-所以 App 侧不能把外来 token 的交易并进本账号那一批。用户裁定（2026-10-15）送审前做完，做法如下。
+所以 App 侧不能把外来 token 的交易并进本账号那一批。做法如下（2026-10-15 用户裁定）。
 
 ### 9.1 恢复购买
 
