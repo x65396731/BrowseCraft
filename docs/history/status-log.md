@@ -2065,3 +2065,8 @@ HANDOFF 第 1 节九行只留「欠什么 + 指针」，第 2 节 `BCA-BUILD-003
 代码（`1a776573`）：删 `RestoreReadingHistoryUseCase` 与 `HistoryPersistenceCoordinator.restore`（10-17 去撤销后无人调用；`ReadingHistoryRemoval` 仍作删除返回值）；历史页有声书措辞改「上次听到 / 听到 · 章名 / 继续听」，新词条 `history_progress_listened_to` 三语，判据同库页；`DetailPageComponents` 与 `WebsiteCacheCleaner` 两处注释改正。未 build、未跑测试。
 文档：History-Page 合同 2.2 / 2.4 / 2.5 / 三 / 验收清单补有声书措辞与「没有撤销写回」；Library-Video 实现位置补 `load()` 自身异常仍弹系统提示框；六份库页 / 详情合同的封面行各补「来源已判定用手机 UA 时封面也换手机 UA（`BCA-RUNTIME-010`）」。
 STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两行条款列 `BCA-SYNC-009` → `未编号`（原因：`BCA-SYNC-009` 定义的是不得进云的数据，续看同步本身没有条款），更新日期 2026-10-04 → 2026-10-22；第 2 节新增「历史页有声书措辞与库页对齐」一行。
+
+### 审计待确认项的控制台核对（2026-10-22，Chrome 里只读查看）
+
+- CloudKit 控制台 `iCloud.com.xiefei.AnyPortal`：Production 的 `HistoryEntry` 恰 21 个自定义字段（`coverURL`、`deletedAt`、`detailURL`、`duration`、`episodeIndex`、`itemID`、`kind`、`locatorJSON`、`pageIndex`、`playbackTime`、`schemaVersion`、`sourceID`、`sourceIndex`、`title`、`totalProgression`、`unitKey`、`unitTitle`、`unitURL`、`updatedAt`、`visitedAt`、`workKey`），单字段索引全部 None；控制台显示的「27 fields」含 6 个系统字段。Development 与 Production 的 Indexes 页搜 `HistoryEntry` 都无条目（对照：搜 `FavoriteItem` 有）。History-Resume-Sync 合同第 24 行「21 个字段，都不建索引」成立，合同不动。
+- App Store Connect：AnyPortal「iOS 1.0 正在等待审核」（构建 55）；「App 内购买项目」页 5 个项目（`site.unlock.v2.1 / .5 / .10 / .30`、`remove.ads`）都在「草稿 (5)」、状态「准备提交」，1.0 版本页没有内购一栏——内购没有随 1.0 送审。HANDOFF「App Store 首发」行改为这条欠项，处置方式由用户定。
