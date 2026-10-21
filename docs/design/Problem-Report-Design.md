@@ -12,8 +12,8 @@
 来源与规则版本查询。
 
 不在本文范围：来源内搜索、阅读器、有声书、视频播放器、来源页与规则目录上的入口；客服对话与处理进度回执（只回编号）、
-截图、自动上报、给报告发 coin、规则执行本身与现有埋点和 Crashlytics 的采集范围。邮件方案（面板把报告与日志打成文件、
-走系统分享面板）只作服务端不可用时的兜底。
+截图、自动上报、给报告发 coin、规则执行本身与现有埋点和 Crashlytics 的采集范围。服务端不可用时面板只给「再试一次」；
+邮件兜底（面板把报告与日志打成文件、走系统分享面板）未实施，是否做见 [STATUS.md](../STATUS.md) 第 12 节的候选行。
 
 ## 二、条款
 
@@ -164,17 +164,17 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 | 测试 | 快照存储、网址清洗（含带令牌的查询串、片段、user:pass@ 与路径令牌段）、报文拼装、各组的问题类型表、日志片段截取（`LogFileSink.recentLines` 的会话、时间窗、类别、条数与字节上限、旧文件在前与坏行跳过）、选集默认值（站点书详情：有续读位置默认那一章并标来自历史，没有时取第一章；漫画与影视详情用同一套取法，未单独写用例） |
 | 隐私 | `PrivacyInfo.xcprivacy` 的其他诊断数据为关联，并声明客户支持与浏览历史两类（用途 App 功能、不追踪），不声明搜索历史；App Store Connect 隐私标签与 PortalCore 隐私权政策页的「問題回報」一节同口径 |
 
-## 八、书阅读器单章失败（可选）
+## 八、书阅读器单章失败
 
-站点书单章正文失败时，除「网页上没有正文」之外的失败（网络失败、站点 403 / 5xx、反爬页、选择器取不到、规则配置错）
-变成 Readium 的访问失败，`BookReaderView` 的 `onError` 为空闭包，不出 App 自己的提示，也不经 `RuleFailureDiagnostics`。
-这一路不挡报告入口：从书详情报某一章时报告里没有快照，但日志片段有阶段失败记录。要单独改进时：
+站点书单章正文取失败时（网络失败、站点 403 / 5xx、反爬页、选择器取不到、规则配置错），与「网页上没有正文」同一种渲染：
+`ReadiumSitePublicationBuilder` 把章节标题、`book_reader_chapter_load_failed` 与分类器短句、`book_reader_chapter_retry_hint`
+渲染成说明页（在 Readium 正文里，只写文字、不放链接）并记 error `book-chapter-load-failed`；`BookReaderView` 的 `onError`
+记 `book-navigator-error`（`BCA-OBS-015`）。这一路不经 `RuleFailureDiagnostics`，不挡报告入口：从书详情报某一章时报告里没有快照，
+但日志片段有阶段失败记录。
 
-- 新增失败点 `book_reader_chapter`：在 `BookReaderViewModel` 里给章节内容提供方包一层，在 catch 里经
-  `RuleFailureDiagnostics.report` 上报，`SourceRuntimeError` 的 emptyContent 不报；同一章在一次阅读里只报一次。
-  新失败点先登记进埋点合同第 6.1 节，书详情的内容组随之也取它的快照。
-- 其余失败也渲染说明页（与 emptyContent 同一种渲染，另加三语文案）。说明页渲染在 Readium 正文里，只写文字、不放链接；
-  `onError` 至少记一条 error 日志（`BCA-OBS-015`）。
+候选（[STATUS.md](../STATUS.md) 第 12 节）：新增失败点 `book_reader_chapter`——在 `BookReaderViewModel` 里给章节内容提供方包一层，
+在 catch 里经 `RuleFailureDiagnostics.report` 上报，`SourceRuntimeError` 的 emptyContent 不报；同一章在一次阅读里只报一次。
+新失败点先登记进埋点合同第 6.1 节，书详情的内容组随之也取它的快照。
 
 ## 九、服务端依赖（PortalCore）
 

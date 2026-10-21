@@ -13,6 +13,7 @@ private struct HTTPDataResponse {
 
 /// 中文注释：把 Alamofire 请求与 Swift 任务取消接起来。取消可能早于请求创建，所以记下「已取消」，
 /// 请求一挂上就立刻取消。规则目录添加来源的「取消」与总时限靠它真正中断网络请求。
+/// `@unchecked` 的依据：`request` 与 `isCancelled` 只在 `lock` 内读写。
 private final class CancellableRequestBox: @unchecked Sendable {
     private let lock: NSLock = NSLock()
     private var request: Request?

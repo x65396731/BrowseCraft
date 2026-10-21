@@ -45,7 +45,7 @@
 ### 2.5 长按菜单与删除
 
 - 长按任意来源弹出菜单：第一项按状态为「打开库」（当前来源）/「切换并打开库」（其他来源）/「启用」或「替换使用」（已暂停）；
-  其后是「来源详情」（`SourceDebugView`，正式版保留，2026-10-01 用户裁定）与分隔开的红色「删除来源」。
+  其后是分隔开的红色「删除来源」。Debug 构建在两者之间多一项「来源详情」（`SourceDebugView` 整页只在 Debug 构建存在，正式版的菜单没有这一项）。
 - 左滑删除保留。左滑与长按「删除来源」都直接删除，不弹确认（2026-10-03 用户裁定），删除后底部给「已删除「来源名」 · 撤销」，约 4 秒；页面底部的说明写明删除来源后它的阅读 / 观看历史和收藏仍会保留（见 [删除来源时保留历史与收藏](Source-Deletion-Cascade-Design.md)）。
 
 ### 2.6 启用来源窗口
@@ -61,7 +61,7 @@
 
 | 场景 | 显示 |
 | --- | --- |
-| 没有来源 | 标题行照常，右侧仍写位置计数「0 / N 位置」；下面插画 + 「还没有来源」+ 一句说明；两张入口卡片「从规则目录挑一个」（打开 `CatalogSourceListView`）与「用网址生成」（打开 `AddSourceView`） |
+| 没有来源 | 标题行照常，右侧仍写位置计数「0 / N 来源位置」；下面插画 + 「还没有来源」+ 一句说明；两张入口卡片「从规则目录挑一个」（打开 `CatalogSourceListView`）与「用网址生成」（打开 `AddSourceView`） |
 | 位置已满且只有一个来源 | 位置条 + 正在使用卡片 + 提示卡「想再加一个网站？」：说明位置已满，可先长按删除当前来源，或获取更多位置 |
 | iCloud 首次恢复 | 位置条显示「— / —」，中部为 `CloudSyncInitialRestoreView` 的等待 / 恢复中卡片（指示器是 56pt 品牌等待标记，见 [品牌等待标记](Brand-Waiting-Mark-Design.md)）与两条骨架；失败时显示原因与「下拉可重试」 |
 
@@ -87,7 +87,7 @@
 
 ## 六、实现位置
 
-- `BrowseCraft/Features/Sources/SourcesView.swift`：顶部按钮、位置条、正在使用卡片、分区、长按菜单、空状态与启用窗口。
+- `BrowseCraft/Features/Sources/SourcesView.swift`：顶部按钮、位置条、正在使用卡片、分区、长按菜单（「来源详情」项与其目的地只在 `#if DEBUG` 里）、空状态与启用窗口。
 - `BrowseCraft/Features/Sources/SourceRowView.swift`：按 2.3 / 2.4 重画行。
 - `BrowseCraft/App/RootView.swift`：来源页请求打开库时切到库标签（与 `latestSourceAddID` 触发的跳转同一处）。
 - `BrowseCraft/Features/Shared/CloudSyncInitialRestoreView.swift`：失败态改为下拉重试。

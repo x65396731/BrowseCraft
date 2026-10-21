@@ -1769,3 +1769,38 @@ accountMismatch / transactionAlreadyClaimed 跳过），`SettingsViewModel` 恢�
 - 同日提审被拦：「必须上传 13 英寸 iPad 截屏」——`project.yml` 项目级的 `TARGETED_DEVICE_FAMILY: "1"` 不生效（XcodeGen 给 iOS target 的缺省是 "1,2" 且 target 级覆盖项目级），1.0 (53) / (54) 的包都声明了 iPad；改为写进 BrowseCraft target 的 `settings.base`，构建号 54 → 55，PROD 重新归档。App 信息「内容版权」按用户裁定选「否，不包含、显示或访问第三方内容」（工具型 App，内容由用户指定网站、设备直连）。
 - 同日 1.0 (55)（只 iPhone）PROD 归档核过（UIDeviceFamily [1]、PROD、prod-v1、无测试工具）并上传，App Store Connect 22:09 显示「正在处理」；处理完把版本 1.0 的构建从 54 换成 55 再提审。
 - 同日 22:2x 版本 1.0（构建 55）提交 App 审核，状态「正在等待审核」；提审页：繁中 + 英文两套文案（docs/release/app-store-listing-1.0.md）、各 6 张 iPhone 截屏、技术支持网址 https://anyportal.online/support、版权 © 2026 Xie Fei、不需要登录、联系人谢飞 / 邮箱 / +81 电话、英文审核备注、手动发布；App 信息「内容版权」选否；销售范围台湾 + 香港。审核通过后在 App Store Connect 手动点「发布此版本」。
+
+## 2026-10-22 设计书审计：处置（用户「按建议处理，第 3 项 Logging 先按合同补 info / notice 日志点」）
+
+审计报告在 Claude 文档「BrowseCraft 设计书审计 10-22」（https://claude.ai/artifact/AMoM891m4wnWYw6RvxnokH）。
+口径与 fwq 10-20 审计相同：闸门先跑（A0–A13、三道代码闸门全过），再把本仓 36 份 C 类、Core 4 份合同、7 份 README、STATUS 与 HANDOFF 逐句对 HEAD `5c276908`。
+查到 11 处与现行代码 / 裁定直接矛盾、六份页面合同都漏了 10-19 问题报告入口、Logging 第 8 节要求的 info / notice 日志点代码没落地、
+STATUS / HANDOFF 13 处时态句被 1.0 (50)–(55) 推翻、10-21 加回两段「实施状态（日期）」。处置按报告第六部分十项逐条提交，本节按项记旧值与搬出的句子。
+
+### 第 1 项：十一处高危改口
+
+STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：
+
+- 第 2 节「发现」行：检查点 `bd9a497` / 2026-10-12 → `5c276908` / 2026-10-22，工作项补「不按本人生成 id 剔除公共条目」一句。原因：2026-10-22 提交去掉了该过滤（生成者本人在 7 天可见期内看不到转成示例的自己规则），此前未登记。
+- 第 12 节「可选：书阅读器单章失败接住并上报」行：工作项「…新失败点 `book_reader_chapter`、其余失败渲染说明页、`onError` 记日志」→「候选：…经 `RuleFailureDiagnostics` 上报（…说明页与 `onError` 日志已随第 13 节末行落地）」，更新日期 2026-10-19 → 2026-10-22。原因：说明页与 `onError` 日志已随 TestFlight 1.0 (50) 走查修复落地，只剩失败点未做。
+
+从 C 类改掉或搬出的句子（`BCA-DOC-007`，逐字）：
+
+- （Sources-Page-Redesign 2.5）其后是「来源详情」（`SourceDebugView`，正式版保留，2026-10-01 用户裁定）与分隔开的红色「删除来源」。
+  —— 2026-10-01 的「正式版保留」已被 2026-10-20 发布前清单第 2 项（整页 `#if DEBUG`）取代，合同改为只在 Debug 构建有这一项。
+- （Catalog-Page-Redesign 2.3）入口页类拒因（`reasonDetail` 落在 `CatalogSourceListView.entryPageRejectionDetails`）时追加「看看怎样的页面能生成」链接，打开 `EntryPageGuideView`，行为与现状一致。
+  —— 2026-10-20 失败文案不再叫用户换页（fwq `APP-MEMO-045`）起链接只挂首页 / 根入口，合同改为引用 `VideoGenerationOutcomeText.entryGuideDetails`。
+- （Book-Kind-Wiring 二）2026-09-13 立项前逐处只读核对的五仓现状表已整节归档 —— 去掉日期。
+- （Book-Kind-Wiring 三）三批都已落地（状态见 STATUS.md 第 1 节）；下列各条是落地后的合同形状，当年的验收口径与裁决叙事在 status-log.md。—— 状态句改为指针。
+- （Book-Kind-Wiring 五）book catalog 已发布进公共目录，「不发布」一路已被取代，叙事见 status-log.md —— 改现在时。
+- （Book-Kind-Wiring 一 / 三 / 七 / 十二 / 十六）`CatalogSourceKind` 的归属由「BrowseCraftDomain 包」改为 App 目标 `Domain/Models/Source/CatalogSource.swift`（2026-10-10 Domain 包瘦身后一直如此）；
+  「`AddSourceView` 加 `bookSource` 入口（复用 `VideoGenerationInputView(sourceKind: .book)`）」改为三张类型横幅；「Readium 依赖与 SwiftSoup fork」改为「当年的 fork」；
+  「`BookSiteDetailView` 自己持有 `selectedChapter`」改为 `selectedReaderRoute`；「Start / Continue Listening」改为现行词条。
+- （Problem-Report 八，原标题「书阅读器单章失败（可选）」）站点书单章正文失败时，除「网页上没有正文」之外的失败（网络失败、站点 403 / 5xx、反爬页、选择器取不到、规则配置错）变成 Readium 的访问失败，`BookReaderView` 的 `onError` 为空闭包，不出 App 自己的提示，也不经 `RuleFailureDiagnostics`。这一路不挡报告入口：从书详情报某一章时报告里没有快照，但日志片段有阶段失败记录。要单独改进时：…其余失败也渲染说明页（与 emptyContent 同一种渲染，另加三语文案）。说明页渲染在 Readium 正文里，只写文字、不放链接；`onError` 至少记一条 error 日志（`BCA-OBS-015`）。
+  —— 说明页与 `onError` 日志已随 TestFlight 1.0 (50) 走查修复落地，第八节改写为现状，只剩失败点作候选。
+- （Problem-Report 一）邮件方案（面板把报告与日志打成文件、走系统分享面板）只作服务端不可用时的兜底。—— 未实施，改为指向 STATUS 第 12 节候选行。
+- （architecture.md 一 / 三 / 四 / 六 / 九）目录树删去 `SwiftSoup/`（覆盖包 2026-10-20 已删）；pre-build 脚本去掉 SwiftSoup；端口 `Sendable` 的例外补 `GuestIdentityProvisioning`；
+  `@unchecked Sendable` 22 → 23（`AlamofireHTTPClient` 的 `CancellableRequestBox`，其注释补「`@unchecked` 的依据」）；use case 48 → 46、各层行数现算回写；
+  `VideoGenerationInputPreflight` / `VideoGenerationInputURL` 从「app-only」里拿掉（Runtime 的 reducer 也用）；`AddCatalogSourceUseCase` fetching → `LoadCatalogSourcesUseCase`。
+- （HANDOFF 第 1 节）「未随已发构建打包」「下次打包后真机」两行、「发现」一行的「合同已入库、代码未动」「其余账号此刻拿到空目录（接口实测 15 / 0 条）」与「下一会话建议顺序」里的「首发送审前的硬前置」
+  都已被 TestFlight 1.0 (50)–(55) 与 10-21 提审推翻，改为现行欠项。

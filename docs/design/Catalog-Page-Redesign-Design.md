@@ -37,6 +37,7 @@
 「发现」自上而下两块，数据都取公共目录、按 `section` 分开；没有 `section` 字段或取值不认得的条目一律不展示。
 
 - **站点示例**（Release 与 Debug 都有）：取 `section` 为 `example` 的条目，保持服务端返回顺序，最多 6 条，不按类型分区。
+  示例可以由某个用户生成的规则转来，所以**不按本人生成 id 剔除**：生成者本人在 7 天可见期内会在「发现」与「我的生成」两边看到同一条，这是预期。
   - 示例只收内容版权没有疑问的站点（公有领域作品、政府公开作品，或使用条款明确允许转载与聚合的站点），
     由服务端目录侧经 fwq 生成后配置，本文不列站名；不另建演示站。
   - 分区标题「站点示例」按统一分区标题（`footnote` 粗体次级色，左右 24pt），右侧写条数「N 个」。
@@ -68,13 +69,14 @@
 ### 2.3 我的生成：按时间的时间线
 
 - 成功规则与失败记录**合并为一条时间线**，按 `VideoGenerationOutcome` 的 `finishedDate` 倒序，最新在上；
-  按自然日分组，组头为「今天」「昨天」，更早的写「M月d日」。没有 `finishedDate` 的记录排在最后一组「更早」。
+  按自然日分组，组头为「今天」「昨天」，更早的写「M月d日」（跨年带年份）。没有 `finishedDate` 的记录排在最后一组「更早」。
 - 时间线上方是保留期说明卡片，文案沿用 `catalog_personal_retention_hint`。
 - **成功规则卡片**：首字徽标 + 名称（最多两行）+ 「主机名 + 灰色路径」单行截断；右侧是动作按钮；
   下方一条保留期进度条，长度为剩余时间占 7 天的比例，右侧是 `personalRuleRemainingComponents` 给出的剩余文案。
   剩余不足 1 天时进度条与文案改用警示色。
 - **失败记录卡片**：警示色描边与底色，左侧警示图标，右侧依次是「生成失败」小标签 + 入口 URL、`reason` / `reasonDetail` 文案；
-  入口页类拒因（`reasonDetail` 落在 `CatalogSourceListView.entryPageRejectionDetails`）时追加「看看怎样的页面能生成」链接，打开 `EntryPageGuideView`，行为与现状一致。
+  只有首页 / 根入口类拒因（`reasonDetail` 落在 `VideoGenerationOutcomeText.entryGuideDetails`，现只有 `entryPageIsSiteRoot`）时追加「看看怎样的页面能生成」链接，打开 `EntryPageGuideView`；
+  其余拒因只陈述成因、不叫用户换页（fwq `APP-MEMO-045`），`entryPageRejectionDetails` 只用于并进已知拒因集合。
 - 两种卡片都保留左滑删除（`deletePersonalRule` / `deleteFailedGenerationOutcome`），删除按钮为通高红色块。
   失败记录按入口 URL 去重、只显示最近一次，所以左滑删除失败记录时把同一入口的全部失败一起软删除；
   服务端终态接口的上限随之提高，条数由 7 天可见期限住，不再出现「删一条、更早一条补位」。
@@ -100,7 +102,7 @@
 添加一条新来源要用这条规则真的取一次网站第一页，等待几乎全在这一步，长短取决于网站本身。
 
 - **取消**：停止这次添加，这一条恢复「+」，其余恢复可用，不写失败文案，不报 `source_added`。
-- **总时限 45 秒**：到点按取消处理，这一条追加警示文案「这个网站太久没有响应，请稍后再试。」。
+- **总时限 45 秒**：到点停止这次添加、这一条恢复「+」、其余恢复可用，并追加警示文案「这个网站太久没有响应，请稍后再试。」；与取消不同，超时仍报 `source_added` failed（`error_code` 为 network，见埋点合同）。
 - **取消与超时做到底**：规则请求的公共通道（`AlamofireHTTPClient`）随任务取消中断请求，WebView 取页本来就响应取消；
   `AddCatalogSourceUseCase` 存库前再查一次是否已取消，所以取消或超时后即使第一页晚到也不入库，用户不会看到「取消了却加上了」。
 
@@ -116,6 +118,7 @@
 | 场景 | 判定 | 显示 |
 | --- | --- | --- |
 | 发现 · 加载中 | `isLoadingCatalogSources` 且目录为空 | 「站点示例」标题照常显示，下面一张三行的卡片行组骨架（徽标、两行字、圆形按钮的色块），底部「加载中…」 |
+| 我的生成 · 加载中 | 已登录、时间线为空且 `isLoadingCatalogSources` | 整页一个系统转圈 + 「加载中…」，不用骨架 |
 | 发现 · 空 | 加载结束且没有示例（Debug 下也没有内部测试条目） | 空书架插画 + 「暂无目录数据」+ 一句说明 + 向下箭头与「下拉可重新加载」 |
 | 我的生成 · 未登录 | `isPersonalCatalogSignInRequired` | 上锁书箱插画 + 「登录后查看」+ `catalog_personal_sign_in_hint` + 「到「设置」里用 Apple 登录」的指引（登录入口在设置页，目录页不另设登录按钮） |
 | 我的生成 · 空 | 已登录，成功与失败都为空 | 空白画布插画 + 「还没有生成过规则」+ 指向「添加来源」的说明，主按钮「去添加来源」（目录页收起后由来源页打开添加来源），次链接「怎样的页面能生成？」 |
@@ -139,7 +142,7 @@
   两套取值都随系统。Features 层不直接写 `.white` / `.black` / `Color(uiColor:)`：实心按钮上的字用 `onAction`，类型色底上的字用 `onAccent`（浅色白、深色墨），反色元素上的字用 `onPrimary`，非分组页面底 `plainBackground`，分隔线 `separator`，按下态 `pressedFill` / `pressedScrim`，阴影 `shadow` / `cardShadow` / `posterShadow`，封面上的黑 `coverScrim` / `coverShade` / `badgeScrim` / `headerScrim`，固定深色瓷砖上的半透明白 `onDarkFill`（统一 16%）。仍允许直接写颜色的只有功能性取值，清单以 `CatalogPalette` 的注释为准。**类型横幅永远是深色色块**：插画本身是深底，横幅的底色、图标圆、标题与说明文字
   都取固定的深色取值、不随系统变；浅色页面上它就是三块深色类型色块，与来源页「正在使用」的深色类型瓷砖同一种做法。
   页面、卡片、次级填充与分段控件全部取系统色（`systemGroupedBackground`、`secondarySystemGroupedBackground`、`tertiarySystemFill`），不另写深色值。
-- **文字**：随系统（`.primary` / `.secondary`）；横幅上的标题 #F4F3EF 是唯一固定的文字色。字体用系统字体。
+- **文字**：随系统（`.primary` / `.secondary`）；横幅上的标题 #F4F3EF 是本页唯一固定的文字色（深色头图与沉浸播放页上的白字见各自合同）。字体用系统字体。
 - **类型色**（`CatalogKindStyle.accent`，浅 / 深）：视频 #A85A12 / #F2A65A（琥珀）、漫画 #6D4FD6 / #B79CFF（淡紫）、书籍 #1E7D68 / #5CC8B0（青绿）；横幅等固定深色处只用深值。类型之间同时用图标区分，
   不只靠颜色：视频为播放三角、漫画为对话气泡、书籍为书本。
 - **动作色**：添加 #2563EB（白字对比度满足 4.5:1，不随系统）；警示浅色 #C2410C / 深色 #FF8A70（`CatalogPalette.warning`，淡底取其 14%）；删除 #E5484D。
@@ -194,7 +197,7 @@
 - `BrowseCraft/Features/Sources/SourcesView.swift`：「去添加来源」在目录页收起后打开添加来源。
 - `BrowseCraft/Application/UseCases/Generation/CatalogSourceGrouping.swift`、`BrowseCraft/Domain/Models/Source/CatalogSource.swift`、`BrowseCraft/Application/UseCases/Source/AddCatalogSourceUseCase.swift`：`section` 的解码（明文字段，解密后带到 `CatalogSource.section`，不认得的取值为 nil）与按构建筛选（`CatalogSourceGrouping.exampleSources` 最多 6 条、`internalSources` 只在 Debug 收）。
 - `Localizable.strings`：标签名、类型横幅、日期分组、空状态与未登录的文案键。
-- 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`。
+- 固定输入：`BrowseCraftTests/Features/Sources/CatalogPersonalTimelineTests.swift`、`CatalogSourceGroupingTests.swift`（`section` 筛选）、`PersonalRuleRetentionTests.swift`（本人生成转成示例后两边都在）、`SourcesViewModelTests.swift`（添加超时与取消）。
 
 ## 八、真机验收清单
 

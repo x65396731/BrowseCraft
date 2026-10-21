@@ -9,11 +9,11 @@ interpret a rule, and who may touch the network.
 
 | Module | Kind | Size | Role |
 | --- | --- | --- | --- |
-| `BrowseCraft` | app target | ~74.5k lines | Everything in §2 |
+| `BrowseCraft` | app target | ~75k lines | Everything in §2 |
 | `BrowseCraftCore` | sibling SwiftPM package | ~30k lines | Rule models, validation, resolved graphs, deterministic parsing |
 | `BrowseCraftAPIKit` | sibling SwiftPM package | ~2.4k lines | The BrowseCraft backend contract (endpoints, DTOs, transport) |
 | `BrowseCraftDomain` | sibling SwiftPM package | ~2.1k lines | Domain kernel: values, ports, policies and diagnostics shared by the app and the rule runtime |
-| `BrowseCraftRuntime` | sibling SwiftPM package | ~14k lines | The whole rule runtime: Book, Comic, Video and the shared dispatch |
+| `BrowseCraftRuntime` | sibling SwiftPM package | ~14.5k lines | The whole rule runtime: Book, Comic, Video and the shared dispatch |
 | `BrowseCraftLog` | sibling SwiftPM package | <1k lines | The one logging type `AppLog`, its value types and sink protocol (`docs/design/Logging-Design.md`) |
 
 **Core's rule models are this app's domain model.** `SiteRule`, `VideoSiteRule`, `ListContext`,
@@ -45,7 +45,6 @@ fresh machine has to clone all six repositories side by side under one parent di
   BrowseCraftRuntime/
   BrowseCraftAPIKit/
   BrowseCraftLog/
-  SwiftSoup/              # local override package (BCA-BUILD-002)
 ```
 
 ## 2. Layers inside the app target
@@ -55,10 +54,10 @@ Dependency arrows point inward. Nothing below may reference anything above it.
 | Layer | Size | Owns |
 | --- | --- | --- |
 | `Domain` | 1.8k / 42 files | Entities, 13 repository protocols, pure domain services |
-| `Application` | ~14.8k / 122 files | 48 use cases, the remaining ports, coordinators, the coin wallet and push handling |
+| `Application` | ~14.8k / 122 files | 46 use cases, the remaining ports, coordinators, the coin wallet and push handling |
 | `Infrastructure` | 14.2k / 109 files | GRDB, CloudKit, Alamofire, WebKit, Keychain adapters (StoreKit stays in `Features`, see §9) |
-| `Features` | 35.5k / 129 files | `@MainActor` view models and SwiftUI views |
-| `Shared` | 4.6k / 39 files | Logging, diagnostics, ads, common image views |
+| `Features` | 36.1k / 129 files | `@MainActor` view models and SwiftUI views |
+| `Shared` | 4.7k / 40 files | Logging, diagnostics, ads, common image views |
 | `App` | 3.2k / 21 files | Composition root, feature factories, startup, the Debug-only demo mode (`App/Demo`) |
 
 `App/Composition` is the composition root: the only place allowed to assemble concrete adapters,
@@ -181,12 +180,12 @@ and the design documents reference them by ID and do not restate the text.
   every package manifest must be `swift-tools-version: 6.0` with an explicit `.swiftLanguageMode(.v6)`
   (§4).
 - `BCA-UI-003` The app exposes no entry point that creates or edits a source rule. Rules arrive
-  only through the server catalog (`AddCatalogSourceUseCase` fetching `/catalog/sources` with the
-  `kinds=` and `features=` it supports, stored encrypted in the snapshot);
+  only through the server catalog (`LoadCatalogSourcesUseCase` fetching `/catalog/sources` with the
+  `kinds=` and `features=` it supports, `AddCatalogSourceUseCase` materialising one entry, stored encrypted in the snapshot);
   `SourceDebugView` shows them read-only. Rule generation, normalisation and catalog publication
   contracts therefore live entirely in the fwq repository and are neither defined nor referenced here.
 
-Further build rules (the SwiftSoup, ad-configuration and bundled-asset scripts run as pre-build
+Further build rules (the ad-configuration and bundled-asset scripts run as pre-build
 phases next to the boundary script; `scripts/check-localization.py` runs after compilation; see
 `scripts/README.md`):
 
@@ -224,15 +223,15 @@ The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad lay
 The target builds in the Swift 6 language mode (`SWIFT_VERSION: "6.0"`) with
 `SWIFT_STRICT_CONCURRENCY: complete`; the five packages declare `.swiftLanguageMode(.v6)`.
 
-Every port protocol in `Application/Ports` (one deliberate exception: `ImageCacheManaging` is
-`AnyObject`-only, see its comment), every repository in `Domain/Repositories`, and every
+Every port protocol in `Application/Ports` (two deliberate exceptions, each explained in its comment:
+`ImageCacheManaging` is `AnyObject`-only, `GuestIdentityProvisioning` is not `Sendable`), every repository in `Domain/Repositories`, and every
 Domain value type is `Sendable`; `BrowseCraftCore`'s rule models are `Sendable` too. Use cases and
 transfer structs therefore conform without escape hatches. Closures stored by `Sendable` types are
 declared `@Sendable`.
 
-`@unchecked Sendable` (22 remaining) is reserved for state protected by a lock
+`@unchecked Sendable` (23 remaining) is reserved for state protected by a lock
 (the identity, account-scope and credential stores, the two caches, the change notifier, the
-preflight URLSession delegate, the diagnostic identity store, the `UserDefaults`-backed preference
+preflight URLSession delegate, the cancellable-request box in `AlamofireHTTPClient`, the diagnostic identity store, the `UserDefaults`-backed preference
 and pending-work stores, the log-file sink, the rule-failure snapshot store, the per-source
 user-agent fallback) or for immutable members whose types
 Readium / Foundation / Nuke do not mark `Sendable`. The convention is a comment that starts with
@@ -272,7 +271,7 @@ mapping; they no longer create tables.
 
 ## 6. Tests
 
-`BrowseCraftTests` is ~28.5k lines / 137 files, mostly Swift Testing with some XCTest.
+`BrowseCraftTests` is ~28.8k lines / 136 files, mostly Swift Testing with some XCTest.
 
 ViewModel tests are assembled by `BrowseCraftTests/TestDoubles/ViewModels/ViewModelTestHarness.swift`:
 real use cases and persistence coordinators on top of real GRDB repositories against a temporary
@@ -353,10 +352,10 @@ occur for them.
   the runtime factory gates on it. What remains app-only is
   entangled with kernel values and stays: `SourceType` / `SourceOrigin` (fields of `Source`),
   `ClientUserAgent`, `PageDataResponse`, `RenderedPageContentLoader`,
-  `PageContentSettleCondition`, `EmptyBrowserRequestHeaderProvider`,
-  `VideoGenerationInputPreflight` and `VideoGenerationInputURL`. None of them is dead: each is a field
-  type or payload of a kernel value and is referenced from its own file.
-- **Core and APIKit are unversioned path dependencies** (see §1).
+  `PageContentSettleCondition` and `EmptyBrowserRequestHeaderProvider`. None of them is dead: each is a field
+  type or payload of a kernel value and is referenced from its own file. `VideoGenerationInputPreflight` and
+  `VideoGenerationInputURL` are not app-only: the runtime's `VideoGenerationInputReducer` consumes them.
+- **All five packages are unversioned path dependencies** (see §1).
 - **`Shared` mixes concerns** — Firebase, AdMob, logging, image views and review prompts, with five
   `.shared` singletons that have no port and cannot be substituted in tests (`AppAnalytics`,
   `CrashDiagnostics`, `DiagnosticIdentityStore`, `RuleFailureSnapshotStore`, `AppReviewPromptPolicy`).
