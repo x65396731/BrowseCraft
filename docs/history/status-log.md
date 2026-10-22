@@ -2110,3 +2110,11 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 
 - STATUS 第 14 节「仓外」行：工作项格「PortalCore 仓已提交、未部署」→「PortalCore 仓已提交并已部署上线」。原因：两页已随 PortalCore `328c366` 部署（见上节），线上 `/privacy` `/support` 均含 `article#ja`；其余各格不变。
 - `CatalogRuleFacts.swift` 的 `appLanguage` 注释「三份 Localizable」→「各语言 Localizable」，Q4 措辞收敛时漏的一处。
+
+## 2026-10-22 日语本地化：build 与模拟器走查（用户允许 build）
+
+- `xcodebuild … -configuration Debug -destination 'platform=iOS Simulator,OS=27.0,name=iPhone 18 Pro' build` 成功（Xcode 27.0）；编译后 Check Localization 阶段无报错，`scripts/check-localization.py <Objects-normal>` 单独再跑退出 0；`AnyPortal.app` 含 `ja.lproj`。本机工程先前已按 `scripts/regenerate-project.sh` 重新生成（`knownRegions` 含 ja）。
+- 走查：演示模式 + `-AppleLanguages (ja) -AppleLocale ja_JP` 启动，开场「スキップ」、五个底栏页、カタログ（見つける / マイ生成）、ソースを追加、動画ルールを生成与「生成できるページとは」、影视 / 漫画 / 书详情、书阅读器正文与目次、设置各子页、アカウントを削除说明页均为日文，演示内容（站名、作品名、简介、正文）为日文版。截图在会话 scratchpad，未入库。
+- 发现（未改）：书详情目录标题复用 `comic_detail_section_chapters`，日文值「話」放在书上不对（中文「章节」两边通用）；`generation_input_url_placeholder` 在输入框里截断（英文原文同样偏长）；原文里「Site Slot」与「source slot」混用，日文随之出现「サイト枠」与「ソース枠」两种说法（各语言都有，属原文问题）。
+- 推送：用 `simctl push` 发生成成功 / 合并 / 失败三条 `loc-key` 负载，锁屏按系统语言取文案，这台模拟器系统首选为 zh-Hans-JP，显示的是简中版；临时给 App 写的 `AppleLanguages (ja)` 不被系统通知采用，已删回。日文推送要整机切日语才能看，未做。
+- STATUS 第 14 节：「同上，build 下的本地化闸门与日语系统模拟器走查…」行 验证 not-run → simulator-passed（工作项文字改为实际走查范围与发现，检查点 53de1aed → 2aef60e4）；新增「走查未覆盖的部分」一行 not-run（日语推送、系统权限弹窗、播放页）；「演示模式日语」行 验证 not-run → simulator-passed。
