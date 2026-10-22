@@ -104,7 +104,10 @@ STATUS_COLUMNS = [
 DEF_RE = re.compile(r"^(?:- |\d+\. )`(BCA-([A-Z]+)-\d{3})`")
 BCA_RE = re.compile(r"`(BCA-[A-Z]+-\d+)`")
 BC_RE = re.compile(r"`(BC-[A-Z]+-\d+)`")
-FWQ_DEF_RE = re.compile(r"^- `(BC-[A-Z]+-\d+(?:\.\d+)?)`")
+# APP-MEMO-* 是由规则生成引出的 App 改动，定义点同样在 fwq（docs/README.md 第 4 节）；本仓库只写引用点。
+APP_MEMO_RE = re.compile(r"`(APP-MEMO-\d+)`")
+FWQ_DEF_RE = re.compile(r"^- `((?:BC-[A-Z]+|APP-MEMO)-\d+(?:\.\d+)?)`")
+FWQ_LOCAL_DEF_RE = re.compile(r"^(?:- |\d+\. )`((?:BC-[A-Z]+|APP-MEMO)-\d+)`")
 
 # A4：状态串头部。「影响范围 / 影响源 / 问题类型」是范围声明，按三分法留在 C 类，不在此列。
 STATUS_HEADER_RE = re.compile(r"^(更新时间|状态|前置)[:：]")
@@ -179,31 +182,35 @@ def collect_definitions(rep):
 
 
 def check_references(rep, defs, fwq_defs):
-    """A2：引用到的 ID 必须有定义点。A3：本仓库不得为 fwq 已定义的 ID 写定义点。"""
-    bca_refs, bc_refs = {}, {}
+    """A2：引用到的 ID 必须有定义点。A3：本仓库不得为 fwq 已定义的 ID 写定义点。
+    BC-* 与 APP-MEMO-* 的定义点都在 fwq（docs/README.md 第 4 节），两族一起核对。"""
+    bca_refs, fwq_refs = {}, {}
     for rel in ALL_FILES:
         for n, line in lines_outside_fences(read(rel)):
             for cid in BCA_RE.findall(line):
                 bca_refs.setdefault(cid, f"{rel}:{n}")
-            for cid in BC_RE.findall(line):
-                bc_refs.setdefault(cid, f"{rel}:{n}")
+            for cid in BC_RE.findall(line) + APP_MEMO_RE.findall(line):
+                fwq_refs.setdefault(cid, f"{rel}:{n}")
     for cid, where in sorted(bca_refs.items()):
         if cid not in defs:
             rep.fail("A2", where, f"{cid} 没有定义点")
+    memo_count = sum(1 for cid in fwq_refs if cid.startswith("APP-MEMO-"))
+    bc_count = len(fwq_refs) - memo_count
     if fwq_defs is None:
-        rep.skip("A2", f"fwq 不可达，{len(bc_refs)} 个 BC-* 引用未核对")
+        rep.skip("A2", f"fwq 不可达，{bc_count} 个 BC-* 与 {memo_count} 个 APP-MEMO-* 引用未核对")
         rep.skip("A3", "fwq 不可达，未核对本仓库是否为 fwq 已定义的 ID 另写定义点")
     else:
-        for cid, where in sorted(bc_refs.items()):
+        for cid, where in sorted(fwq_refs.items()):
             if cid not in fwq_defs:
                 rep.fail("A2", where, f"{cid} 在 fwq 的 C 类文档里没有定义点")
-        for rel in ALL_FILES:
+        # 中文注释：只扫 C 类——H 类按 BCA-DOC-009 不构成约束，status-log 里以 ID 开头的叙事项不是定义点。
+        for rel in C_FILES:
             for n, line in lines_outside_fences(read(rel)):
-                m = re.match(r"^(?:- |\d+\. )`(BC-[A-Z]+-\d+)`", line)
+                m = FWQ_LOCAL_DEF_RE.match(line)
                 if m and m.group(1) in fwq_defs:
                     rep.fail("A3", f"{rel}:{n}",
                              f"{m.group(1)} 的定义点在 fwq，本仓库只允许写引用点（BCA-DOC-001）")
-    rep.note("A2", f"{len(bca_refs)} 个 BCA 引用 / {len(bc_refs)} 个 BC 引用")
+    rep.note("A2", f"{len(bca_refs)} 个 BCA 引用 / {bc_count} 个 BC 引用 / {memo_count} 个 APP-MEMO 引用")
 
 
 def check_c_form(rep):
@@ -659,7 +666,7 @@ def main():
     ap = argparse.ArgumentParser()
     # 六仓与 fwq 都是同级 checkout（architecture.md 第 1 节），缺省就按同级找，不写死某台机器的目录。
     ap.add_argument("--fwq", default=os.path.join(os.path.dirname(ROOT), "fwq"),
-                    help="fwq 仓库路径（缺省 ../fwq）；不可达时 A2 的 BC-* 部分与 A3 跳过并如实报告")
+                    help="fwq 仓库路径（缺省 ../fwq）；不可达时 A2 的 BC-* / APP-MEMO-* 部分与 A3 跳过并如实报告")
     args = ap.parse_args()
 
     rep = Report()

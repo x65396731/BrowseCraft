@@ -2158,3 +2158,8 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 分段芯片：演示漫画只有 48 话、不到分段阈值 50，临时按启动参数让 `DemoSourceRuntime` 给 120 话（测完撤掉未提交）。点「70–21」后第 72 / 71 / 70 那一行紧贴贴顶分区头下、段首可见；STATUS 第 2 节该行 not-run → simulator-passed。
 - 埋点：第一次用 `log stream --style compact` 什么事件都没抓到——Firebase 的「Logging event」行是 debug 级，`log stream` 默认不含；改为 `--level debug` 并加 `-FIRAnalyticsDebugEnabled` 后能逐条看到事件与参数。抓到的事件见 STATUS 第 9 节新行；两处顺带观察：库页顶部「上次看到」瓷砖直接开播放器，`playback_started` 的入口是 continue_tile；来源删除后约 4 秒的撤销窗口里点「撤销」要在提示条出现后 1 秒内点到（模拟器 tap 延迟），前两次点晚了被记成真删除、第三次成功，`source_deletion_undone` 报了、`source_deleted` 没多记。NOIRLab 的播放页跳到站点自己的 SSO 登录页，是站点行为。走查过程把真实账号的 NOIRLab 来源删了、换成漢典古籍（1 / 1 位置）。
 - 顺带收的 HANDOFF 欠项：Debug 白名单账号在「发现」看到「内部测试」三类横幅（视频横幅与樱花动漫 / jable 卡片）。
+
+## 2026-10-23 check-docs 也核 APP-MEMO 引用；STATUS 检查点改成落地提交
+
+- 用户裁定做 HANDOFF 挂账「`check-docs.py` 也核 `APP-MEMO` 引用」：`FWQ_DEF_RE` 同时收 `BC-*` 与 `APP-MEMO-*` 的 `- \`ID\`` 定义点，A2 把两族引用一起对 fwq 核（本机 56 个 BC、16 个 APP-MEMO 全有定义点），A3 的本地定义点正则同样覆盖两族、扫描范围从全部文档收到 C 类——第一次跑时 status-log 里「- `APP-MEMO-035`：在 fwq 只曾是…」这条叙事项被当成定义点报了，H 类按 `BCA-DOC-009` 本就不构成约束。fwq 不可达时的跳过文案写明两族各多少条。scripts/README 的 A2 / A3 一句同步，HANDOFF 该行删除，STATUS 第 5 节加一行。
+- STATUS 检查点：取用幂等键行与第 13 节 #2 / #5 / #6 三行由动手时的 HEAD `eaf2d05f` 改为落地提交 `db207e33`；第 15 节实施行与观感项行由 `2b7f58af` 改为 `eaf2d05f`。
