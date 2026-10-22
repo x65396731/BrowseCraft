@@ -58,7 +58,7 @@ struct BookReaderView: View {
                         },
                         onError: { description in
                             // 中文注释：吞错必记（`BCA-OBS-015`）；单章取不到已在内容提供方渲染成说明页，这里只兜 Readium 自己的错误。
-                            AppLog.error(.reader, "book-navigator-error", ["error": .text(description)])
+                            AppLog.error(.reader, "book-navigator-error", ["description": .content(description)])
                         }
                     )
                     .ignoresSafeArea(edges: .bottom)

@@ -2076,3 +2076,8 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 ## 2026-10-22 1.0 连同 5 个内购重新提审（构建 1000）
 
 用户裁定重提并指定用 TestFlight 上的构建 1000（Xcode Cloud 打的包，不用 55）。在 Chrome 里操作：版本页删掉构建 55、「添加构建版本」选 1000 并保存；「添加以供审核」生成 iOS 提交草稿；5 个内购各自页面「添加以供审核 → iOS 提交草稿」（其中 10 Site Slots 第一次没加上，核草稿清单后补加）；草稿 6 项（iOS App 1.0 (1000) + `site.unlock.v2.1 / .5 / .10 / .30` + `remove.ads`）点「提交以供审核」，控制台回「已提交 6 个项目」，内购状态转「正在等待审核」。`project.yml` 的构建号仍是 55（本机 Organizer 段），云端包的号段另算。
+
+## 2026-10-22 审计待确认项：`APP-MEMO-035` 的来龙去脉与 `.text` 闸门
+
+- `APP-MEMO-035`：在 fwq 只曾是 `docs/rules/STATUS.md` 的一行（10-12 立，判据正文在设计稿第 46 节），10-20 fwq 审计按 `BC-DOC-059` 整行退休进 `docs/history/status-log.md`，第 46 节同日随冻结稿分流进归档卷；fwq 的 C 类里现在没有这个 ID。`APP-MEMO-044` / `045` 同一形态（只在 STATUS 行里，退休后同样失去承载），`clause-index.md` 不索引 `APP-MEMO`，本仓 A2 不查它。结论：fwq 侧缺一张常驻的 `APP-MEMO` 表；本仓引用改指引擎条款（`BC-BOOK-064` / `BC-EPISODE-020`）待用户定。
+- `.text` 字段：全仓 265 处，264 处在 debug、1 处在 error（`BookReaderView.swift` `book-navigator-error`，10-21 加，Release 下只记 `len=N`）。用户裁定加闸门：`check-architecture-boundaries.sh` 按括号配平找出 info 及以上调用里的 `.text(` 判失败（探针文件自测命中跨行字典一处、放过 debug 一处），那一处改为 `.content(description)`；Logging-Design 第 4 节 `text` 一行与 scripts/README 各补一句。STATUS 第 10 节新增一行（检查点为当时 HEAD，闸门脚本与代码在同一笔提交）。

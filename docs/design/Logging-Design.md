@@ -69,7 +69,7 @@ AppLog.debug(.rule, "page-image-resolved", ["index": .int(index), "title": .cont
 | `id` | SHA-256 前 8 位十六进制，用于来源 ID、账号、交易号、实体 ID |
 | `content` | Debug 构建明文；Release 构建只记长度 |
 | `error` | `ErrorDiagnostics.summary` 的输出：类型名、domain:code、错误自己声明的摘要 |
-| `text` | 只在 `debug` 级出现，过一遍 `AppLog.sanitizedDebugMessage` |
+| `text` | 只在 `debug` 级出现，过一遍 `AppLog.sanitizedDebugMessage`；`check-architecture-boundaries.sh` 按括号配平找出 `AppLog.info` / `notice` / `error` / `fault` 调用里的 `.text(` 并判失败 |
 
 没有「原样字符串」这一类：要记一个值，先决定它属于哪一类。
 

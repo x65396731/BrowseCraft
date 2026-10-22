@@ -234,6 +234,38 @@ fail_if_token_used '(^|[^[:alnum:]_])print[[:space:]]*\(' 'use AppLog instead of
 fail_if_token_used '(^|[^[:alnum:]_])(debugPrint|NSLog|os_log)[[:space:]]*\(' 'log through AppLog only (BCA-OBS-010).'
 fail_if_token_used '(^|[^[:alnum:]_])(AppDebugLog|RuleRuntimeDebugLog)([^[:alnum:]_]|$)' 'AppDebugLog / RuleRuntimeDebugLog were removed; log through AppLog (BCA-OBS-010).'
 fail_if_token_used '(^|[^[:alnum:]_])Logger[[:space:]]*\(' 'only Shared/Logging/OSLogSink.swift may create an OSLog Logger (BCA-OBS-010).'
+# 中文注释：`.text` 字段只许出现在 `AppLog.debug(` 的调用里（BCA-OBS-012，Logging-Design.md 第 4 节）：
+# Release 下它只记长度，放进 info 及以上等于把信息丢掉。逐行 grep 看不到跨行的字段字典，这里按括号配平找整个调用。
+text_field_above_debug="$(
+  for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT" "$LOG_PACKAGE_ROOT"; do
+    [[ -d "$directory" ]] || continue
+    /usr/bin/find "$directory" -name '*.swift' -print0 | /usr/bin/xargs -0 /usr/bin/awk '
+      BEGIN { depth = 0; start = 0 }
+      {
+        line = $0
+        if (depth == 0 && match(line, /AppLog\.(info|notice|error|fault)[[:space:]]*\(/)) {
+          start = FNR
+          line = substr(line, RSTART + RLENGTH - 1)
+        } else if (depth == 0) {
+          next
+        }
+        opens = gsub(/\(/, "(", line)
+        closes = gsub(/\)/, ")", line)
+        depth += opens - closes
+        if ($0 ~ /\.text[[:space:]]*\(/) { hit = 1 }
+        if (depth <= 0) {
+          if (hit) { printf "%s:%d: .text field in a non-debug AppLog call\n", FILENAME, start }
+          depth = 0; hit = 0; start = 0
+        }
+      }
+    '
+  done | apply_exemptions || true
+)"
+if [[ -n "$text_field_above_debug" ]]; then
+  echo 'Architecture boundary violation: `.text` is a debug-only field; use .content / .code / .error / .path in info and above (BCA-OBS-012).'
+  printf '%s\n' "$text_field_above_debug"
+  exit 1
+fi
 os_log_imports="$(
   for directory in "$APP_ROOT" "$CORE_ROOT" "$RULE_MODELS_ROOT" "$DOMAIN_PACKAGE_ROOT" "$RUNTIME_PACKAGE_ROOT" "$API_KIT_PACKAGE_ROOT" "$LOG_PACKAGE_ROOT"; do
     [[ -d "$directory" ]] || continue

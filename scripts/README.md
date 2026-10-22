@@ -37,6 +37,7 @@ Pre-build gate for layer boundaries. It runs on every build and never modifies a
 - `print(` 与 `try!` 禁用扩展到 App 与五个包（Core / Domain / Runtime / APIKit / Log）的 Sources。
 - 只有一种日志（`BCA-OBS-010`）：`debugPrint(`、`NSLog(`、`os_log(` 与已删除的 AppDebugLog、RuleRuntimeDebugLog 一律禁用，
   `Logger(` 与 `import OSLog` 只许出现在 `BrowseCraft/Shared/Logging/OSLogSink.swift`。
+- `.text` 日志字段只许出现在 `AppLog.debug(` 调用里（`BCA-OBS-012`）：按括号配平找出 info 及以上调用里的 `.text(`，命中即失败。
 - `try?` 只许收敛（`BCA-OBS-015`）：按文件计数，超过 `scripts/try-optional-baseline.txt` 登记数即失败；同一行带 `// try?: <理由>` 的不计。
 - `BrowseCraftRuleModels` 不得依赖 SwiftSoup 与解析目标。
 - Swift 6 语言模式：`project.yml` 的 `SWIFT_VERSION` 必须是 `6.0`，五个包的 manifest 必须是 `swift-tools-version: 6.0`
