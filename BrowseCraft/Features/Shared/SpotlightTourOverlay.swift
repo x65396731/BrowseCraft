@@ -70,7 +70,7 @@ struct SpotlightTourStep: Equatable {
     let cornerRadius: CGFloat
 }
 
-/// 蒙层 + 挖空 + 气泡 + 右上「跳过」。盖在根视图的 `TabView` 上，`ignoresSafeArea` 含底栏。
+/// 蒙层 + 挖空 + 气泡（步号行右侧带「跳过」）。盖在根视图的 `TabView` 上，`ignoresSafeArea` 含底栏。
 struct SpotlightTourOverlay: View {
     let step: SpotlightTourStep
     let anchors: [SpotlightTarget: Anchor<CGRect>]
@@ -95,12 +95,20 @@ struct SpotlightTourOverlay: View {
                 ZStack {
                     self.scrim(cutout: cutout, size: proxy.size)
 
+                    // 中文注释：挖空描一圈 1pt 半透明白：深色下蒙层与页面都近黑，没有它看不出哪块是亮着的（第八节）。
+                    if let cutout: CGRect = cutout {
+                        RoundedRectangle(cornerRadius: self.step.cornerRadius, style: .continuous)
+                            .strokeBorder(CatalogPalette.onDarkFill, lineWidth: 1)
+                            .frame(width: cutout.width, height: cutout.height)
+                            .position(x: cutout.midX, y: cutout.midY)
+                            .allowsHitTesting(false)
+                    }
+
                     switch self.step.mode {
                     case .welcome(let title, let primaryTitle):
                         self.welcomeCard(title: title, primaryTitle: primaryTitle)
                     case .bubble, .tapThrough:
                         self.bubble(cutout: cutout, size: proxy.size, insets: insets)
-                        self.skipButton(insets: insets)
                     }
                 }
                 // 中文注释：换步时挖空从上一个矩形动画到下一个；减弱动态效果打开时直接切（第三节）。
@@ -195,10 +203,24 @@ struct SpotlightTourOverlay: View {
 
     private var bubbleCard: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // 中文注释：「跳过」放在气泡的步号行右侧，不再浮在蒙层右上——那里会压在标题行的计数或按钮上。
+            // 库页那一步没有步号，也不需要「跳过」（「知道了」就是关闭）。
             if let counter: String = self.step.counter {
-                Text(counter)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .center) {
+                    Text(counter)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    Button(action: self.skipAction) {
+                        Text(self.skipTitle)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(CatalogPalette.settingsIcon)
+                            .frame(minWidth: 44, minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(height: 20)
             }
             Text(self.step.message)
                 .font(.subheadline)
@@ -274,23 +296,6 @@ struct SpotlightTourOverlay: View {
         .padding(.horizontal, 28)
     }
 
-    // MARK: - 跳过
-
-    private func skipButton(insets: EdgeInsets) -> some View {
-        Button(action: self.skipAction) {
-            Text(self.skipTitle)
-                .font(.subheadline)
-                .foregroundStyle(CatalogPalette.onAction)
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .background(CatalogPalette.onDarkFill, in: Capsule())
-                .frame(minHeight: 44)
-        }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-        .padding(.top, insets.top + 6)
-        .padding(.trailing, 20)
-    }
 }
 
 /// 整屏矩形减去一个圆角矩形（even-odd），既是蒙层的形状也是它的命中区域。
