@@ -114,7 +114,7 @@
 "video_generation_outcome_failed_unknown" = "生成に失敗しました。しばらくしてからやり直してください。";
 "video_generation_outcome_detail_noPlaybackCarrier" = "このサイトに動画の再生が見つかりませんでした。";
 "video_generation_outcome_detail_episodeLayoutUnsupported" = "このサイトには動画ページがありますが、このエピソードのレイアウトにはまだ対応していません。";
-"video_generation_outcome_detail_terminalPagesWithoutCarrier" = "閲覧・再生・本文のページは取得できましたが、ページ上に直接読み取れる内容が見つかりません（キャンバス描画、暗号化、スクリプトで読み込む内容など）。まだ対応していません。";
+"video_generation_outcome_detail_terminalPagesWithoutCarrier" = "閲覧・再生・本文のページは取得できましたが、ページ上に直接読み取れる内容が見つかりません（キャンバス描画、暗号化、スクリプトで読み込む内容など）。まだ対応していません。このサイトが別の種類（動画・マンガ・本）の場合は、種類を変えてもう一度お試しください。";
 "video_generation_outcome_detail_contentNotServerRendered" = "このサイトの内容は別途データをリクエストするか復号しないと取得できません。現在は内容がページと一緒に配信されるサイトのみ対応しています。別のサイトでお試しください。";
 "video_generation_outcome_detail_entryPageWithoutPagination" = "このページのページ送りアドレスを導き出せず、最初の1画面しか取得できないため、今は生成できません。";
 "video_generation_outcome_detail_entryPageMultipleListFamilies" = "このページには互いに無関係なリストが複数あり、どれを生成すべきか判別できません。";

@@ -2186,3 +2186,9 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - STATUS 第 13 节被覆盖的旧值（`BCA-DOC-006`）：「清单 #12 其余」一行原文为
   | 清单 #12 其余（控制台侧，用户自己做）：ASC 取消「在 Apple 芯片 Mac 上提供」（用户裁定）；核 GMA 12.14.0 自带隐私清单的跟踪声明；8 个 `InAppPurchasePlan` 对 ASC 5 个内购；TestFlight 包导出日志看 path 是否 `host#xxxxxxxx`；ATS 例外 `content.mkzcdn.com`——2026-10-20 本机 `curl -I https://content.mkzcdn.com/` 得 403（TLS 通、防盗链拒绝），规则里的图片地址是否已是 https 未核，例外暂留 | 未编号 | required | approved | not-started | not-run | e564973b | 2026-10-20 |
   新值：工作项去掉末尾「；ATS 例外 `content.mkzcdn.com`——…例外暂留」一段，其余各格不变；ATS 例外另起一行 implemented / static-audit-passed。
+
+## 2026-10-23 「终端页无载体」失败文案补一句中性的换类型提示（用户裁定「先做中性提示」）
+
+- 起因：kmansin09（漫画站）被按影视提交，失败在 `terminalPagesWithoutCarrier`，结果页只说「认不出可以直接读取的内容，暂不支持」，用户读不出是类型选错。线上 322 条任务里 6 个入口被换类型重交过、5 个换后成功（fwq 台账 `site-research/data/2026-10-23-kind-mismatch/`）。
+- 引擎侧「像另一种类型」的交叉判定量过：真选错 5 站、误报 8 站（有声书 iframe 播放器、小说装饰图 / 图片正文），不能断言「你选错了」；用户选只补中性提示、不依赖判定。
+- 改动：四语 `video_generation_outcome_detail_terminalPagesWithoutCarrier` 句末补「如果这个网站其实是另一种类型（视频、漫画或书籍），请换一种类型再试。」——类型名与类型卡片同一套词条（`Video` / `Comics` / `Books`）。只改词条、不改代码；推送按 `reason` 走 `siteNotSupported`，不带细分，这句只在结果页出现。`plutil -lint` 四份通过、键数一致；`check-localization.py` 要构建产物，按会话纪律未 build、未跑测试。
