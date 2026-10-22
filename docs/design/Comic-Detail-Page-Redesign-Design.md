@@ -200,7 +200,7 @@ sfacg 链接内的受限标记 → `BC-COMIC-147`（交付 `restriction`，**章
 - `BrowseCraft/Domain/Repositories/ComicChapterHistoryRepository.swift`、`BrowseCraft/Infrastructure/Database/Repositories/GRDBComicChapterHistoryRepository.swift`、`BrowseCraft/Application/UseCases/History/ReadingActivityPersistenceCoordinator.swift`：按作品取全部章节历史。
 - `BrowseCraft/Domain/Models/History/ComicChapterHistory.swift`、`BrowseCraft/Infrastructure/Database/Records/History/ComicChapterHistoryRecord.swift` 与其 schema 扩展、`BrowseCraft/Infrastructure/Database/Migrations/AppDatabaseMigrations.swift`、`BrowseCraft/Features/Library/Comic/Reader/ReaderViewModel.swift`：`pageCount`。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：`LibraryChipBar` 复用，不改。
-- 三份 `Localizable.strings`：继续阅读四种文案、「章节」「N 章」「已读 M」「N / M 页」「正序 / 倒序」「没有章节」、受限横幅（「登录」「关闭」后改为三页共用的 `library_banner_login` / `library_banner_dismiss`）；删去只剩本页在用的「Loading Details / Paid / About / Information / Try Again / Access Required / Photo Album / Related Page / ID / Info」与旧的空章节说明（「Continue Reading」「Chapters」「Log In」「Not Now」别处还在用，保留）。
+- 各语言的 `Localizable.strings`：继续阅读四种文案、「章节」「N 章」「已读 M」「N / M 页」「正序 / 倒序」「没有章节」、受限横幅（「登录」「关闭」后改为三页共用的 `library_banner_login` / `library_banner_dismiss`）；删去只剩本页在用的「Loading Details / Paid / About / Information / Try Again / Access Required / Photo Album / Related Page / ID / Info」与旧的空章节说明（「Continue Reading」「Chapters」「Log In」「Not Now」别处还在用，保留）。
 
 ## 十三、真机验收清单
 

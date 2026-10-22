@@ -93,7 +93,7 @@
 - `BrowseCraft/Features/Settings/SettingsView.swift`：「安全」分组。
 - `BrowseCraft/Features/Favorites/FavoritesView.swift`、`BrowseCraft/Features/History/HistoryView.swift`：锁定时换成锁定态。
 - `BrowseCraft/App/RootView.swift`：切标签与回到前台时自动拉起验证，进入后台与非活跃时通知 `ContentLockStore`。
-- `BrowseCraft/Info.plist` 与三份 `InfoPlist.strings`：面容 ID 用途说明；三份 `Localizable.strings` 末尾「收藏与历史锁定」一段。
+- `BrowseCraft/Info.plist` 与各语言的 `InfoPlist.strings`：面容 ID 用途说明；各语言的 `Localizable.strings` 末尾「收藏与历史锁定」一段。
 
 ## 七、真机验收清单
 

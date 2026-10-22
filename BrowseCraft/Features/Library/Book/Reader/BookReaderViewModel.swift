@@ -203,7 +203,7 @@ final class BookReaderViewModel {
                     point: .bookReaderOpen,
                     source: selection.source
                 )
-                // 中文注释：站点书走分类器的三语短句；`RuleExecutionError.errorDescription` 是写死简体中文
+                // 中文注释：站点书走分类器的本地化短句；`RuleExecutionError.errorDescription` 是写死简体中文
                 // 加 `stage=… source=… url=…` 诊断字段，只进日志不给用户看（2026-10-20 审计发布前清单第 5 项）。
                 self.state = .failed(RuleExecutionErrorClassifier.userMessage(for: error))
             } else {

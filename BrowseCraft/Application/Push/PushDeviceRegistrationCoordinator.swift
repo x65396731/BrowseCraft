@@ -15,7 +15,7 @@ actor PushDeviceRegistrationCoordinator {
     private let sessionCoordinator: PortalSessionCoordinator
     /// 中文注释：nil 时（测试替身）按开关关处理。
     private let campaignPushPreferenceStore: (any CampaignPushPreferenceStoring)?
-    /// 中文注释：App 当前界面语言（en / zh-Hans / zh-Hant），活动推送按它取三语文案之一；由组合根从主 bundle 读。
+    /// 中文注释：App 当前界面语言（主 bundle 的首选本地化），活动推送按它取对应语言的文案；由组合根从主 bundle 读。
     private let languageProvider: @Sendable () -> String
 
     private var deviceToken: String?

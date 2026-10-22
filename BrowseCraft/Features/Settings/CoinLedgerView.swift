@@ -251,7 +251,7 @@ private struct CoinLedgerRow: View {
         }
     }
 
-    /// 中文注释：原因三语；未知原因显示服务端原文，不猜。
+    /// 中文注释：原因走本地化词条；未知原因显示服务端原文，不猜。
     static func title(for reason: CoinLedgerReason) -> String {
         switch reason {
         case .signupGrant:

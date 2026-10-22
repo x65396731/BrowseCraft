@@ -39,7 +39,7 @@ final class AdPlaybackViewModel {
         )
     }
 
-    /// 中文注释：看完广告后给用户的提示（三语本地化，用户 2026-09-27）。不再直接显示 SDK 的英文原文
+    /// 中文注释：看完广告后给用户的提示（本地化词条，用户 2026-09-27）。不再直接显示 SDK 的英文原文
     /// （「Reward earned: 20 coin」、加载失败的错误串）——那些照旧写进调试日志。未登录看完不计 coin，文案要说清楚。
     static func message(
         for result: RewardedAdPresentationResult,

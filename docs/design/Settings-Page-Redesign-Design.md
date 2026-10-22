@@ -118,7 +118,7 @@
 - 「复制诊断码」行并进「诊断码」行，长按菜单的「复制」去掉；复制图标与登记一并删除。
 - 「启动广告服务」行并进账号卡的「看广告」按钮。
 - 新增插画 `SettingsSignIn` 登记在资产预算表里。
-- 只被以上几行使用的本地化字符串三语一起删除。
+- 只被以上几行使用的本地化字符串各语言一起删除。
 
 ## 七、实现位置
 
@@ -128,7 +128,7 @@
 - `BrowseCraft/Features/Settings/Components/SettingsAccountCardView.swift`：账号卡的已登录、未登录与进行中。
 - `BrowseCraft/Features/Settings/Components/AppleSignInButton.swift`：系统登录按钮的包装。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：行图标的两个颜色名。
-- 三份 `Localizable.strings` 末尾「设置页重设计」一段。
+- 各语言的 `Localizable.strings` 末尾「设置页重设计」一段。
 
 ## 八、真机验收清单
 

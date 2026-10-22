@@ -176,7 +176,7 @@ App 的 `BookPublicationAssembler` 透传 `description`（`BookPublicationManife
 - `BrowseCraft/App/Composition/BookFeatureFactory.swift`：注入收藏用例、读书历史仓储、凭据存储。
 - `BrowseCraft/Application/UseCases/Book/BookPublicationManifest.swift` 与 `BookPublicationAssembler.swift`：透传 `description`。
 - `BrowseCraft/Features/Library/Comic/Detail/ComicDetailViewModel.swift`：`ComicChapterTitleParser` 加中文数字；单测补笔趣阁样例。
-- 三份 `Localizable.strings`：「继续收听」「从第 1 章开始读 / 听」「全书 %@」「刚开始」「有声书 · %@ 章」「这本书还没有章节」「重试」；原英文字面换成键。
+- 各语言的 `Localizable.strings`：「继续收听」「从第 1 章开始读 / 听」「全书 %@」「刚开始」「有声书 · %@ 章」「这本书还没有章节」「重试」；原英文字面换成键。
 - 资产：不新增。
 
 ## 十三、真机验收清单

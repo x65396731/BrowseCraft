@@ -165,7 +165,7 @@
 - `BrowseCraft/Application/UseCases/History/ReadingHistoryUseCases.swift` 与 `ReadingActivityPersistenceCoordinator.swift`：按来源 + `detailURL` 取最近一条视频历史。
 - BrowseCraftCore：`SourceDetailAttribute` 加 `key`，`DefaultVideoDetailRuleParser` 两处构造处传 `id`，测试补断言；BrowseCraftRuntime：`VideoSourceDetailLoader` 转换时带上 `key`。
 - `BrowseCraft/Features/Library/Components/LibraryListTabBar.swift`：芯片抽成可复用的 `LibraryChipBar`，库页分类条与本页线路芯片共用。
-- 三份 `Localizable.strings`：继续看八条文案（`video_detail_continue` / `_continue_single` / `_next_episode` / `_rewatch` / `_rewatch_single` / `_start_from_first` / `_start_with` / `_play`）、「选集」「简介」「展开」「收起」「正序 / 倒序」「N 集」「没有剧集」、解析失败横幅；删去「Description / Last / Loading Playback」。
+- 各语言的 `Localizable.strings`：继续看八条文案（`video_detail_continue` / `_continue_single` / `_next_episode` / `_rewatch` / `_rewatch_single` / `_start_from_first` / `_start_with` / `_play`）、「选集」「简介」「展开」「收起」「正序 / 倒序」「N 集」「没有剧集」、解析失败横幅；删去「Description / Last / Loading Playback」。
 
 ## 十三、真机验收清单
 

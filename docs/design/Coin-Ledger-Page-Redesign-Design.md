@@ -49,7 +49,7 @@
 | 位置 | 内容 |
 | --- | --- |
 | 左 | 36pt 圆形图标。增减为正（获得）用设置页的蓝色图标底与图标色，为负（消耗）用次级填充底与次级色图标 |
-| 中·第一行 | 原因，沿用现有三语文案；未知原因显示服务端原文 |
+| 中·第一行 | 原因，沿用现有本地化文案；未知原因显示服务端原文 |
 | 中·第二行 | 只写时刻，日期已在组头 |
 | 右·第一行 | 增减，等宽数字：获得「+100」用获得色，消耗「−100」（印刷体减号）用主文字色 |
 | 右·第二行 | 「余额 1520」，次级色 |
@@ -91,7 +91,7 @@
 - `BrowseCraft/Features/Settings/CoinLedgerView.swift`：隐藏底栏、余额卡、按天分组的卡片行、骨架、可下拉的失败与空状态、翻页与到底提示。
 - `BrowseCraft/Features/Settings/Components/SettingsAccountCardView.swift`：推入本页时把 `CoinWalletStore` 一并传入。
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：获得色。
-- 三份 `Localizable.strings` 末尾「coin 记录页重设计」一段：当前余额、价格说明、到底提示；「下拉可重试」沿用来源页已有的字符串。
+- 各语言的 `Localizable.strings` 末尾「coin 记录页重设计」一段：当前余额、价格说明、到底提示；「下拉可重试」沿用来源页已有的字符串。
 
 ## 七、真机验收清单
 

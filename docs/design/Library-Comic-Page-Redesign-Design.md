@@ -180,7 +180,7 @@
 - `BrowseCraft/Features/Library/LibraryViewModel.swift` 与 `LibraryPersistenceCoordinator`：按来源读漫画章节历史的只读查询、最近一条与按作品的进度字典、刷新时机。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：按类型选两列 / 三列。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 不改，换漫画样式即可。
-- 三份 `Localizable.strings`：「读到 %@」（`library_comic_read_to`）「继续读 · %@」（`library_card_continue_reading`）「已收藏」（`library_card_favorited`，爱心的读屏标签）；「上次读到」「继续读」「打开作品」沿用历史页与视频库的键。
+- 各语言的 `Localizable.strings`：「读到 %@」（`library_comic_read_to`）「继续读 · %@」（`library_card_continue_reading`）「已收藏」（`library_card_favorited`，爱心的读屏标签）；「上次读到」「继续读」「打开作品」沿用历史页与视频库的键。
 - `LibraryView` 的空态：按当前来源类型选插画，漫画用 `EmptyStateLibraryComic`。
 
 ## 十三、真机验收清单

@@ -160,7 +160,7 @@ detail（详情与目录）、content（某一集、话、章的内容，只从�
 | Features/Shared | 报告面板（含「问题出在哪」两段选择与选集行）、页面上下文（screen + scope + 来源 + 对象 + 可空的失败点）、小字链接与「…」菜单两个小组件；`LibraryStateBanner` 加可选的报告动作 |
 | Features 各页 | 库页与三种详情页各接两个入口，上下文从各自的 ViewModel 拼；详情页另提供目录（已加载的数据）与上次看到 / 读到（取自历史）给选集行；详情页的「…」在 `DetailTopButtons` 里加一个，影视详情另加 |
 | 日志 | `diagnostics` 类别记 notice `problem-report-submitted` 与 error `problem-report-failed`，字段为 scope、问题码、报告编号的 `.id` 哈希与耗时 |
-| 本地化 | 三份 Localizable.strings：问题类型、面板文案、结果与失败文案 |
+| 本地化 | 各语言的 Localizable.strings：问题类型、面板文案、结果与失败文案 |
 | 测试 | 快照存储、网址清洗（含带令牌的查询串、片段、user:pass@ 与路径令牌段）、报文拼装、各组的问题类型表、日志片段截取（`LogFileSink.recentLines` 的会话、时间窗、类别、条数与字节上限、旧文件在前与坏行跳过）、选集默认值（站点书详情：有续读位置默认那一章并标来自历史，没有时取第一章；漫画与影视详情用同一套取法，未单独写用例） |
 | 隐私 | `PrivacyInfo.xcprivacy` 的其他诊断数据为关联，并声明客户支持与浏览历史两类（用途 App 功能、不追踪），不声明搜索历史；App Store Connect 隐私标签与 PortalCore 隐私权政策页的「問題回報」一节同口径 |
 

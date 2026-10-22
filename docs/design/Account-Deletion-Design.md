@@ -245,7 +245,7 @@ D4 依赖服务端放行「appAccountToken 指向的账号已不存在」的交�
 | Infrastructure | `AuthenticationServicesAppleSignInAuthorizer` 同时取 authorizationCode 与 user；`KeychainAppleUserIdentifierStore`；`AuthenticationServicesAppleCredentialStateChecker`；`APIKitPortalAccountDeletionService`；`GRDBAccountDeletionLocalDataStore`；`CloudKitAccountDeletionCloudEraser`；`UserDefaultsAccountDeletionPendingWorkStore` |
 | Features | 设置页「删除账号」行；`AccountDeletionView` 与 `AccountDeletionViewModel`（说明页、确认框、进度遮罩、完成页） |
 | App | `AccountComposition` 装配；`AppContainer` 启动与回到前台时续做未完成工作、检查 Apple 凭据状态 |
-| 文案 | en / zh-Hans / zh-Hant 三语 |
+| 文案 | 各界面语言 |
 | 测试 | `AccountDeletionCoordinatorTests`（清理顺序、换身份、续做标记）、`GRDBAccountDeletionLocalDataStoreTests`（删除范围）、`AccountDeletionMessagingTests` |
 
 实施与验证状态见 [STATUS.md](../STATUS.md) 第 4 节。

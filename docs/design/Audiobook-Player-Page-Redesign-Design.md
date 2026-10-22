@@ -106,7 +106,7 @@ Readium 只给引擎：`AudioNavigator`（播放、拖动、换集、倍速、�
 - `BrowseCraft/Application/UseCases/Book/BookAudioResourceFailure.swift`：失效值与状态码分类；`Infrastructure/Book/SiteBookAudioHTTPClient.swift`：判定与回调；
   `ReadiumSitePublicationBuilder.swift`、`BookReaderPublicationPorts.swift`、`App/Composition/ReadiumPublicationCompositionAdapters.swift`：回调接线。
 - `Features/Sources/Catalog/CatalogStyle.swift`：`immersive*` 取值与功能性例外登记。
-- 三份 `Localizable.strings`：`audiobook_player_*`、`audiobook_contents_*` 十九条。
+- 各语言的 `Localizable.strings`：`audiobook_player_*`、`audiobook_contents_*` 十九条。
 - 测试：`BrowseCraftTests/Features/Book/AudiobookPlayerTests.swift`（失效分类、倍速记忆、取色）。
 
 ## 十、验收清单

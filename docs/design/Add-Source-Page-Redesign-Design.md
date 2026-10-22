@@ -61,7 +61,7 @@
 - `BrowseCraft/Features/Sources/Catalog/CatalogStyle.swift`：`CatalogKindBannerView` 从目录页文件移到这里供两页复用，副标题可传入，可选在类型名后带 ›。
 - `BrowseCraft/Features/Sources/SourcesView.swift`：本页请求打开目录时，等本页收起后再弹目录；从目录页进入时告诉本页不显示目录入口卡。
 - 资源：删 ComicKindBadge、VideoKindBadge、BookKindBadge 三份图并撤掉 `scripts/bundled-image-asset-budgets.txt` 里的登记。
-- 三份 `Localizable.strings`：新增说明、三句举例、「接下来」三行、coin 与登录两句、目录入口卡两句；删去不再使用的词条。
+- 各语言的 `Localizable.strings`：新增说明、三句举例、「接下来」三行、coin 与登录两句、目录入口卡两句；删去不再使用的词条。
 
 ## 六、真机验收清单
 

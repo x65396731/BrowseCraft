@@ -16,7 +16,7 @@ enum DiagnosticDeviceInfo {
         return ProcessInfo.processInfo.operatingSystemVersionString
     }
 
-    /// 中文注释：App 当前界面语言（en / zh-Hans / zh-Hant），不是系统地区。
+    /// 中文注释：App 当前界面语言（主 bundle 的首选本地化），不是系统地区。
     static var interfaceLanguage: String {
         return Bundle.main.preferredLocalizations.first ?? "en"
     }

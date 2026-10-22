@@ -16,7 +16,7 @@ enum AudiobookPlaybackSpeed: Double, CaseIterable, Identifiable, Sendable {
         return self.rawValue
     }
 
-    /// 胶囊与菜单上的写法：「0.75×」「1.0×」「1.25×」「1.5×」「2.0×」（数字不本地化，三语同写）。
+    /// 胶囊与菜单上的写法：「0.75×」「1.0×」「1.25×」「1.5×」「2.0×」（数字不本地化，各语言同写）。
     var label: String {
         switch self {
         case .slower:

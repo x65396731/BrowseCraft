@@ -670,7 +670,7 @@ final class VideoPlayerViewModel {
         return self.activeAppUser?.currentUserID.uuidString ?? self.fallbackUserID
     }
 
-    // 中文注释：「不可播放」页的文案全走三语词条——这里先进 String 再进 Text，本地化闸门看不见，
+    // 中文注释：「不可播放」页的文案全走本地化词条——这里先进 String 再进 Text，本地化闸门看不见，
     // 此前只有 `.mediaSourceRejected` 走了词条（2026-10-20 审计发布前清单第 4 项）。
     private func restrictionMessage(_ restriction: SourceVideoPlaybackRestriction) -> String {
         switch restriction {

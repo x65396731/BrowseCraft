@@ -90,7 +90,7 @@ final class AccountComposition {
             sessionCoordinator: portalSessionCoordinator,
             campaignPushPreferenceStore: UserDefaultsCampaignPushPreferenceStore(),
             languageProvider: {
-                // 中文注释：App 实际在用的本地化（en / zh-Hans / zh-Hant），活动推送按它取文案，与界面一致。
+                // 中文注释：App 实际在用的界面语言（主 bundle 的首选本地化；语言清单只在 scripts/check-localization.py 一处），活动推送按它取文案，与界面一致。
                 return Bundle.main.preferredLocalizations.first ?? "en"
             }
         )

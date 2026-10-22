@@ -61,7 +61,7 @@
 - `BrowseCraft/Infrastructure/Caching/ImageCacheConfigurator.swift`：在 DataCache 自己的串行队列上算用量、清除并等待完成。
 - `BrowseCraft/Infrastructure/Caching/ItemThumbnailImageCachePlugin.swift`：暴露缩略图磁盘缓存与固定上限，补清内存。
 - `BrowseCraft/Infrastructure/Caching/WebsiteCacheCleaner.swift`：只清 WebKit 的缓存类数据。
-- 三份 `Localizable.strings` 的 `cache_*` 一段。
+- 各语言的 `Localizable.strings` 的 `cache_*` 一段。
 
 ## 六、真机验收清单
 

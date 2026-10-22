@@ -170,7 +170,7 @@
 - `BrowseCraft/Features/Library/Components/LibraryStateBanner.swift`：警示色淡底。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift`：最近视频历史的只读查询与刷新时机；分页脚沿用现有三条词条，翻页失败另加 `nextPageErrorMessage` 与第四条词条 `library_pagination_failed`（`LibraryPaginationFooterView` 的 `failureDetail`），库页的系统弹框只剩收藏切换失败与 `load()` 自身的异常（持久化 / 快照读取失败，不是站点侧列表失败）在用，后者仍写 `errorMessage` 弹系统提示框。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 底行允许只写时刻。
-- 三份 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条、长按菜单的「取消收藏」（`favorites_unfavorite`）与「继续看」（`history_menu_continue_watching`）都沿用现有词条；新增长按菜单「打开」「收藏」「打开作品」（`library_card_open` / `library_card_favorite` / `library_tile_open_work`）。
+- 各语言的 `Localizable.strings`：眉行「视频」、「上次看到」、分页脚三条、长按菜单的「取消收藏」（`favorites_unfavorite`）与「继续看」（`history_menu_continue_watching`）都沿用现有词条；新增长按菜单「打开」「收藏」「打开作品」（`library_card_open` / `library_card_favorite` / `library_tile_open_work`）。
 
 ## 十二、真机验收清单
 

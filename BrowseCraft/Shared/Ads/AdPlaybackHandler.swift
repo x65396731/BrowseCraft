@@ -28,7 +28,7 @@ enum RewardedAdPlaybackOutcome: Equatable {
 }
 
 // 中文注释：AdPlaybackHandler 让 SwiftUI 页面以同一套防重复逻辑响应 shouldPlayAd。
-// 广告结束后的提示与设置页手动入口共用同一组三语文案（`AdPlaybackViewModel.message`），未登录看完也在这里提示。
+// 广告结束后的提示与设置页手动入口共用同一组本地化文案（`AdPlaybackViewModel.message`），未登录看完也在这里提示。
 struct AdPlaybackHandler: ViewModifier {
     let shouldPlayAd: Bool
     let trigger: RewardedAdPlaybackTrigger

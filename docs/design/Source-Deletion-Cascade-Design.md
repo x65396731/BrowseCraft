@@ -66,7 +66,7 @@
 
 ## 六、界面
 
-- 来源页底部说明写「删除来源后，它的阅读 / 观看历史和收藏仍会保留。」三语。
+- 来源页底部说明写「删除来源后，它的阅读 / 观看历史和收藏仍会保留。」各语言。
 - 删除与撤销后 `RootView` 重新载入历史页与收藏页，让被删来源的行变为「来源已删除」或恢复正常。库页的收藏标记与「上次看到」瓷砖只看当前来源，不受影响，不再刷新。
 
 ## 七、实现位置
@@ -78,7 +78,7 @@
 - `BrowseCraft/Application/UseCases/Source/` 与 `SourcesPersistenceCoordinator.swift`：删除交回留底，撤销写回。
 - `BrowseCraft/Features/Sources/SourcesViewModel.swift`、`SourcesView.swift`：可撤销的删除与提示条，删除或撤销成功后递增变更计数。
 - `BrowseCraft/App/RootView.swift`：观察变更计数，重新载入历史与收藏。
-- 三份 `Localizable.strings`：`sources_footer_hint`。
+- 各语言的 `Localizable.strings`：`sources_footer_hint`。
 
 ## 八、测试与验收
 

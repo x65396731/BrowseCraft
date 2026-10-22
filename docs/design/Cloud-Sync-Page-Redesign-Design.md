@@ -92,7 +92,7 @@
   `BrowseCraft/Infrastructure/Database/Sync/GRDBCloudAccountPartitionStore.swift`：读「同步的内容」前两行的条数。
 - `BrowseCraft/Application/Ports/Sync/HistoryEntrySyncLocalStore.swift` 与 `BrowseCraft/Infrastructure/Database/Sync/GRDBHistoryEntrySyncLocalStore.swift`：第三行「历史与阅读进度」的作品数（`syncedWorkCount()`）。
 - 入口卡复用来源页的 `SourcesEntryCardView`，卡片组与行间线复用 `SettingsCardGroup`、`SettingsRowSeparator`。
-- 三份 `Localizable.strings` 末尾「云同步页重设计」一段；原页面不再使用的词条已删除。开启云同步失败时直显的错误文案（`CloudSyncSettingsViewModel.setupErrorMessage`）仍用「iCloud 中的 AnyPortal 身份记录无效」这组旧词条。
+- 各语言的 `Localizable.strings` 末尾「云同步页重设计」一段；原页面不再使用的词条已删除。开启云同步失败时直显的错误文案（`CloudSyncSettingsViewModel.setupErrorMessage`）仍用「iCloud 中的 AnyPortal 身份记录无效」这组旧词条。
 
 ## 七、真机验收清单
 

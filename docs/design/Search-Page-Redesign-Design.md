@@ -125,7 +125,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 | `LibraryViewModel` | `searchFailureNeedsLogin: Bool`（按 `RuleExecutionErrorClassifier` 的归类） | 横幅要不要出「登录」 |
 | `LibrarySearchView` | 自绘顶行、搜索框、眉行、四种状态；`fullScreenCover` 挂 `SourceLoginView`；`scrollDismissesKeyboard` | 本页主体 |
 | `LibraryContentView` | 不改；`nextPage` / `loadNextPage` 从 ViewModel 的搜索字段传 | 分页脚复用 |
-| 字符串 | 三份 `Localizable.strings` 新增：「搜索 %@」占位与标题、「输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。」、「正在搜索 “%@”」、「“%@” · %ld 个结果」、「没有找到 “%@”」、「关闭搜索」、「清空」；「换个关键词试试。」沿用现有；横幅上的「重试」「登录」用三页共用的 `library_banner_retry` / `library_banner_login` | — |
+| 字符串 | 各语言的 `Localizable.strings` 新增：「搜索 %@」占位与标题、「输入关键词，按键盘上的搜索。结果来自这个来源自己的搜索。」、「正在搜索 “%@”」、「“%@” · %ld 个结果」、「没有找到 “%@”」、「关闭搜索」、「清空」；「换个关键词试试。」沿用现有；横幅上的「重试」「登录」用三页共用的 `library_banner_retry` / `library_banner_login` | — |
 | 资产 | `EmptyStateSearch` 已在 `bundled-image-asset-budgets.txt` 登记，不新增 | — |
 
 **不在本页做、但记一笔**：视频 Runtime `VideoSourceListLoader.executeSearch` 不读 `input.page`、也不解析搜索结果页的分页；漫画与书都会。等哪天 fwq 给视频搜索规则写了 `pagination`，Runtime 那一层要补；到那时本页什么都不用改。
@@ -160,7 +160,7 @@ sheet 跟随系统深浅，底色取页面底，隐藏系统导航栏；顶行�
 - `BrowseCraft/Features/Library/Components/LibrarySearchView.swift`：去掉系统导航栏标题与「完成」，自绘顶行、搜索框、结果眉行、四种状态、登录 `fullScreenCover`、分页接线、键盘行为；失败横幅调 `LibraryStateBanner.swift`；
   `NavigationStack` 与两个 `navigationDestination(item:)` 原样保留。
 - `BrowseCraft/Features/Library/LibraryViewModel.swift`：第八节的字段与方法；切换来源处调 `clearSearch()`；登录成功后若搜索页正开着且失败是登录墙，自动重搜。
-- 三份 `Localizable.strings`（zh-Hans / zh-Hant / en）：第八节的词条。
+- 各语言的 `Localizable.strings`：第八节的词条。
 - 不改：`LibraryView.swift`（入口按钮与 sheet 不动）、`LibraryContentView.swift`、`SearchSourceContentUseCase.swift`、Core / Runtime。
 - 资产：不新增。
 

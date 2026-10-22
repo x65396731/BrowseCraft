@@ -15,7 +15,7 @@
 | 活动弹窗 | Firebase In-App Messaging（卡片模板），打开 App 时 | Firebase 控制台 | 控制台里录的插画与简 / 繁 / 英文案 |
 | 新注册欢迎页 | 同上，App 在新注册后触发 | Firebase 控制台建一次，长期有效 | 同上 |
 | 网址输入页的成功率一行 | PortalCore `GET /v1/generation-rates` | App 打开网址输入页时自己取 | 生成结局按国家 × 类型 × 档位每天汇总 |
-| 锁屏活动推送 | PortalCore 直连 APNs（现有通道） | 服务器上的活动脚本 | 脚本参数里的三语文案 |
+| 锁屏活动推送 | PortalCore 直连 APNs（现有通道） | 服务器上的活动脚本 | 脚本参数里的各语言文案 |
 
 不在本文范围：预检率（不显示；预检失败不扣 coin，且预检结果只在 Firebase Analytics 里）、来源页活动横幅（不做）、
 活动领取按钮（没有，coin 由服务器直接入账）。生成结果推送不变。
@@ -37,7 +37,7 @@
 - 位置：`VideoGenerationInputView` 的「取页方式」卡片组（`SettingsCardGroup`）里，`GenerationTierPicker` 与档位说明之下。
   不新增卡片，不新增控件，页面仍只有一个主控件。
 - 样式：13pt 次级色，前置 13pt 柱状图标（次级色）；百分比用主文字色 semibold，数字等宽。深色模式按现有次级色与主文字色取值。
-- 文案两种，三语。{地区} 由 App 把服务端返回的两位国家码按系统语言本地化，服务端返回 `scope` 为 global 时写「全部地区」；
+- 文案两种，各界面语言都有。{地区} 由 App 把服务端返回的两位国家码按系统语言本地化，服务端返回 `scope` 为 global 时写「全部地区」；
   {N} 取服务端返回的窗口天数。
   - 有百分比时：「{地区} · 近 {N} 天{普通模式 / 困难模式}生成成功 {百分比}」。
   - 样本不足、只有次数时（用户 2026-10-18 定）：「{地区} · 近 {N} 天{普通模式 / 困难模式}生成 {总次数} 次，成功 {成功次数} 次」。
@@ -90,7 +90,7 @@
 
 ## 六、锁屏活动推送
 
-- 由服务器上的活动脚本经现有 APNs 通道发送；负载带 `kind` 为 campaign，标题与正文按设备登记的语言取三语之一。
+- 由服务器上的活动脚本经现有 APNs 通道发送；负载带 `kind` 为 campaign，标题与正文按设备登记的语言取对应语言的一条。
 - 只发给 `marketing_opt_in` 为真的设备；第一版不按地区筛选。
 - App 收到点击时识别活动推送，刷新 `CoinWalletStore` 的余额，不跳页；报 `push_opened`，`entry` 为 `campaign`（[Analytics-Events-Design.md](Analytics-Events-Design.md) 第 3 节 A 组）。
 
@@ -118,7 +118,7 @@
 | `project.yml` | 链接 In-App Messaging product |
 | 网址输入页 | 第三节的成功率一行与取数 |
 | `BrowseCraftAPIKit` | 成功率接口、登录返回的两个字段、设备登记的两个字段 |
-| 设置页 | 第四节的「通知」分组、图标资产与三语文案 |
+| 设置页 | 第四节的「通知」分组、图标资产与各语言文案 |
 | 设备登记 | `PushDeviceRegistrationCoordinator` 带上同意标记与语言 |
 | 登录后 | 第五节的欢迎页触发 |
 | 推送点击 | 第六节的活动推送识别与余额刷新 |

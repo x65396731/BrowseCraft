@@ -194,7 +194,7 @@
 - `BrowseCraft/Application/UseCases/Library/ResolveLibrarySourcePresentationUseCase.swift`：整站是否有声。
 - `BrowseCraft/Features/Library/Components/LibrarySkeletonGridView.swift`：加 `.bookList` 形态。
 - `BrowseCraft/Features/History/Components/HistoryEntryRowView.swift`：`HistoryContinueTileView` 加可选的标题文案，「上次听到」由调用方传。
-- 三份 `Localizable.strings`：「最新 · %@」（`library_book_latest`）「读到 · %@」（`library_book_read_to`）「听到 · %@」（`library_book_listened_to`）「上次听到」（`history_continue_listened`）「继续听 · %@」（`library_card_continue_listening`）「有声书」（`library_kind_audiobook`）；其余沿用。
+- 各语言的 `Localizable.strings`：「最新 · %@」（`library_book_latest`）「读到 · %@」（`library_book_read_to`）「听到 · %@」（`library_book_listened_to`）「上次听到」（`history_continue_listened`）「继续听 · %@」（`library_card_continue_listening`）「有声书」（`library_kind_audiobook`）；其余沿用。
 - 资产：`EmptyStateLibraryBook`（登记在资产预算表）。
 
 ## 十四、真机验收清单

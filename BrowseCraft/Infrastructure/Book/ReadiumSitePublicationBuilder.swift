@@ -144,7 +144,7 @@ final class SiteBookChapterContainer: Container, @unchecked Sendable {
             } catch {
                 // 中文注释：其余失败（断网、站点 403 / 5xx、反爬页、规则取不到）也渲染一页说明，与 emptyContent 同一种渲染；
                 // 此前交回 Readium 的访问失败，阅读器出错回调为空，正文区一直转圈（Problem-Report-Design.md 第八节，
-                // 2026-10-21 TestFlight 1.0 (50) 真机飞行模式复现）。原因取分类器的三语短句，不带诊断串。
+                // 2026-10-21 TestFlight 1.0 (50) 真机飞行模式复现）。原因取分类器的本地化短句，不带诊断串。
                 AppLog.error(.reader, "book-chapter-load-failed", ["error": .error(error)])
                 let reason: [String] = RuleExecutionErrorClassifier.userMessage(for: error)
                     .split(separator: "\n")
