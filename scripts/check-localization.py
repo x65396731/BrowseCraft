@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # 中文注释：本地化闸门。只读，从不修改任何文件。
 #
-# 不变量：编译器认定为「要本地化」的每一个键，三份 Localizable.strings 里都必须有。
+# 不变量：编译器认定为「要本地化」的每一个键，每种界面语言的 Localizable.strings 里都必须有
+#（BCA-BUILD-009）。语言清单只在下面的 LANGUAGES 写一处，加语言就改它。
 #
 # 「要本地化」的键有两个来源，合起来才完整：
 #   - SwiftUI 的 LocalizedStringKey 与 String(localized:)（Text / Label / Section / Button / .alert …）
@@ -12,8 +13,8 @@
 #     NSLocalizedString("键", comment: "…") 的写法是固定的。
 #
 # 检查三条：
-#   1. en / zh-Hans / zh-Hant 三份 Localizable.strings 能解析，且键集合完全一致；
-#   2. 源码里每个要本地化的键在三份文件里都有，除非登记在 localization-missing-baseline.txt；
+#   1. LANGUAGES 里每种语言的 Localizable.strings 能解析，且键集合完全一致；
+#   2. 源码里每个要本地化的键在每份文件里都有，除非登记在 localization-missing-baseline.txt；
 #   3. 基线只许收敛：登记的键如果已经补上了，必须把那一行删掉，否则闸门失败。
 #
 # 看不到的一类：把字面量先放进 String 再交给 Text(someString) / .accessibilityValue(someString)，
@@ -33,7 +34,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP_SOURCES = os.path.join(REPO_ROOT, "BrowseCraft")
 NS_LOCALIZED_STRING = re.compile(r'NSLocalizedString\(\s*"((?:[^"\\\n]|\\.)*)"')
 SWIFT_ESCAPES = {'"': '"', "\\": "\\", "n": "\n", "t": "\t", "'": "'", "0": "\0"}
-LANGUAGES = ["en", "zh-Hans", "zh-Hant"]
+LANGUAGES = ["en", "zh-Hans", "zh-Hant", "ja"]
 TABLE = "Localizable"
 BASELINE = os.path.join(REPO_ROOT, "scripts", "localization-missing-baseline.txt")
 
@@ -122,7 +123,7 @@ def main():
         missing = [language for language in LANGUAGES if key not in tables[language]]
         failures.append(
             f"\"{key}\" 没有翻译（缺 {', '.join(missing)}），用在 {usages[key][0]}。"
-            f"三份 {TABLE}.strings 都要加上这个键"
+            f"每种语言的 {TABLE}.strings 都要加上这个键"
         )
     for key in sorted(baseline & everywhere):
         failures.append(

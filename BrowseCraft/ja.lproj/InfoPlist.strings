@@ -1,0 +1,5 @@
+/* 收藏与历史锁定（docs/design/Content-Lock-Design.md） */
+"NSFaceIDUsageDescription" = "AnyPortalはFace IDを使ってお気に入りと履歴をロックします。";
+
+/* 首次播激励广告前的跟踪授权（RewardedAdPresenter，2026-10-17） */
+"NSUserTrackingUsageDescription" = "許可すると、coinを受け取るために見るリワード広告があなたの興味により合ったものになります。許可してもしなくても、受け取れるcoinは変わりません。";

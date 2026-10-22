@@ -221,6 +221,15 @@ phases next to the boundary script; `scripts/check-localization.py` runs after c
   `@MainActor` context, passing a `@MainActor` method reference as `@Sendable`, and integer-literal
   arithmetic converted to `TimeInterval` — and the repository does not work around them. To run the tests
   on 26.0.1, make the equivalent rewrites locally and do not commit them.
+- `BCA-BUILD-009` **Every interface language carries every key.** `scripts/check-localization.py` runs
+  after the app target compiles and fails the build when (a) the `Localizable.strings` of the languages in
+  its `LANGUAGES` list do not parse or their key sets differ, (b) a key the compiler marks as localizable
+  (`.stringsdata` under `SWIFT_EMIT_LOC_STRINGS`, plus the first literal argument of `NSLocalizedString`) is
+  missing from any of those files and is not listed in `scripts/localization-missing-baseline.txt`, or
+  (c) a baseline entry has since been translated everywhere (the baseline is converge-only). The language
+  list is declared in that script alone; adding a language means adding its `.lproj` with the full key set
+  in the same change, since a partial file fails (a). User-visible copy is therefore never a bare literal
+  that bypasses the lookup, and the `.lproj` directories are the only place the supported languages exist.
 
 The app target is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`) until the iPad layout is done.
 

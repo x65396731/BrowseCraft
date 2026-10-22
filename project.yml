@@ -227,7 +227,7 @@ targets:
         script: |
           "${SRCROOT}/scripts/check-bundled-image-assets.sh"
     # 中文注释：本地化闸门放在编译之后——它要读 swiftc 刚写出的 .stringsdata。编译器认定要本地化的键
-    # 三份 Localizable.strings 都必须有；闸门上线时已缺的键登记在 scripts/localization-missing-baseline.txt，只许收敛。
+    # 每种界面语言的 Localizable.strings 都必须有（BCA-BUILD-009，语言清单在脚本里）；闸门上线时已缺的键登记在 scripts/localization-missing-baseline.txt，只许收敛。
     postCompileScripts:
       - name: Check Localization
         basedOnDependencyAnalysis: false
