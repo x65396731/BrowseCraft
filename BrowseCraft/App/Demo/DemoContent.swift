@@ -5,11 +5,12 @@ import Foundation
 /// 中文注释：演示模式的全部自造内容——三个示例站、十二部作品、详情简介、剧集 / 章节与一章正文。
 /// 片名与封面一一对应（第 N 部作品用 cover-NN.png），都是原创，不对应任何真实作品或站点；
 /// 站点域名只用 example.com，这是 RFC 2606 专门留给示例的保留域名。
-/// 文案按系统首选语言取繁中 / 简中 / 英文三种，商城三套语言的截图都从这里出。
+/// 文案按系统首选语言取繁中 / 简中 / 英文 / 日文，商城各语言的截图都从这里出；App 不支持的系统语言落到英文。
 enum DemoLanguage: Sendable {
     case traditionalChinese
     case simplifiedChinese
     case english
+    case japanese
 
     static let current: DemoLanguage = {
         let preferred: String = Locale.preferredLanguages.first ?? ""
@@ -19,6 +20,9 @@ enum DemoLanguage: Sendable {
         if preferred.hasPrefix("zh") {
             return .simplifiedChinese
         }
+        if preferred.hasPrefix("ja") {
+            return .japanese
+        }
         return .english
     }()
 }
@@ -27,6 +31,7 @@ struct DemoText: Sendable {
     let hant: String
     let hans: String
     let en: String
+    let ja: String
 
     var value: String {
         switch DemoLanguage.current {
@@ -36,6 +41,8 @@ struct DemoText: Sendable {
             return self.hans
         case .english:
             return self.en
+        case .japanese:
+            return self.ja
         }
     }
 
@@ -82,19 +89,19 @@ enum DemoContent {
         id: "built-in.demo-video",
         kind: .video,
         host: "video.example.com",
-        name: DemoText(hant: "示例影視站", hans: "示例影视站", en: "Demo Video Site")
+        name: DemoText(hant: "示例影視站", hans: "示例影视站", en: "Demo Video Site", ja: "デモ動画サイト")
     )
     static let comicSite: DemoSite = DemoSite(
         id: "built-in.demo-comic",
         kind: .comic,
         host: "comic.example.com",
-        name: DemoText(hant: "示例漫畫站", hans: "示例漫画站", en: "Demo Comic Site")
+        name: DemoText(hant: "示例漫畫站", hans: "示例漫画站", en: "Demo Comic Site", ja: "デモマンガサイト")
     )
     static let bookSite: DemoSite = DemoSite(
         id: "built-in.demo-book",
         kind: .book,
         host: "books.example.com",
-        name: DemoText(hant: "示例書站", hans: "示例书站", en: "Demo Book Site")
+        name: DemoText(hant: "示例書站", hans: "示例书站", en: "Demo Book Site", ja: "デモ書籍サイト")
     )
     /// 中文注释：id 用 `built-in.` 前缀——内置来源不占名额、不会被名额锁住（`Source.isBuiltIn`），
     /// 未登录时会话启动会把名额重置回 1，演示的三个站因此不能走普通来源。
@@ -103,74 +110,77 @@ enum DemoContent {
     static let works: [DemoWork] = [
         DemoWork(
             number: 1, kind: .video, slug: "starport-night-voyage",
-            title: DemoText(hant: "星港夜航", hans: "星港夜航", en: "Starport Night Voyage"),
+            title: DemoText(hant: "星港夜航", hans: "星港夜航", en: "Starport Night Voyage", ja: "星港の夜間航行"),
             synopsis: DemoText(
                 hant: "末班貨運艦「晨星號」在星港停靠的最後一夜，年輕的領航員發現艙底藏著一個不該存在的乘客。天亮之前，她必須決定要不要讓這艘船照常起航。",
                 hans: "末班货运舰「晨星号」在星港停靠的最后一夜，年轻的领航员发现舱底藏着一个不该存在的乘客。天亮之前，她必须决定要不要让这艘船照常起航。",
-                en: "On the freighter Morningstar's last night in port, a young navigator finds a passenger hidden in the hold who shouldn't exist. Before dawn, she has to decide whether the ship still sails."
+                en: "On the freighter Morningstar's last night in port, a young navigator finds a passenger hidden in the hold who shouldn't exist. Before dawn, she has to decide whether the ship still sails.",
+                ja: "最終便の貨物艦「モーニングスター」が星港に停泊する最後の夜、若い航海士は船倉に、いるはずのない乗客が隠れているのを見つける。夜明けまでに、彼女はこの船を予定どおり出航させるかを決めなければならない。"
             )
         ),
         DemoWork(
             number: 2, kind: .video, slug: "changan-chronicles",
-            title: DemoText(hant: "長安異聞錄", hans: "长安异闻录", en: "Chang'an Chronicles"),
+            title: DemoText(hant: "長安異聞錄", hans: "长安异闻录", en: "Chang'an Chronicles", ja: "長安異聞録"),
             synopsis: nil
         ),
         DemoWork(
             number: 3, kind: .video, slug: "letters-from-fog-city",
-            title: DemoText(hant: "霧城來信", hans: "雾城来信", en: "Letters from Fog City"),
+            title: DemoText(hant: "霧城來信", hans: "雾城来信", en: "Letters from Fog City", ja: "霧の街からの手紙"),
             synopsis: nil
         ),
         DemoWork(
             number: 4, kind: .video, slug: "summer-corner-store",
-            title: DemoText(hant: "夏日便利店", hans: "夏日便利店", en: "Summer Corner Store"),
+            title: DemoText(hant: "夏日便利店", hans: "夏日便利店", en: "Summer Corner Store", ja: "夏のコンビニ"),
             synopsis: nil
         ),
         DemoWork(
             number: 5, kind: .comic, slug: "burn-on-squad-seven",
-            title: DemoText(hant: "燃燒吧！第七中隊", hans: "燃烧吧！第七中队", en: "Burn On, Squad Seven"),
+            title: DemoText(hant: "燃燒吧！第七中隊", hans: "燃烧吧！第七中队", en: "Burn On, Squad Seven", ja: "燃えろ！第七中隊"),
             synopsis: nil
         ),
         DemoWork(
             number: 6, kind: .comic, slug: "after-school-astronomy-club",
-            title: DemoText(hant: "放學後的天文部", hans: "放学后的天文部", en: "After-School Astronomy Club"),
+            title: DemoText(hant: "放學後的天文部", hans: "放学后的天文部", en: "After-School Astronomy Club", ja: "放課後の天文部"),
             synopsis: DemoText(
                 hant: "只剩兩個社員的天文部，靠一台舊望遠鏡撐過每個晴朗的夜晚。直到某天，鏡頭裡出現了一顆星圖上沒有的星星。",
                 hans: "只剩两个社员的天文部，靠一台旧望远镜撑过每个晴朗的夜晚。直到某天，镜头里出现了一颗星图上没有的星星。",
-                en: "Down to two members, the astronomy club gets by with one old telescope and every clear night. Then a star that isn't on any chart shows up in the eyepiece."
+                en: "Down to two members, the astronomy club gets by with one old telescope and every clear night. Then a star that isn't on any chart shows up in the eyepiece.",
+                ja: "部員が2人だけになった天文部は、古い望遠鏡1台で晴れた夜を乗り切っている。ある日、レンズの中に星図にはない星が現れた。"
             )
         ),
         DemoWork(
             number: 7, kind: .comic, slug: "dragonbone-and-compass",
-            title: DemoText(hant: "龍骨與羅盤", hans: "龙骨与罗盘", en: "Dragonbone & Compass"),
+            title: DemoText(hant: "龍骨與羅盤", hans: "龙骨与罗盘", en: "Dragonbone & Compass", ja: "竜骨と羅針盤"),
             synopsis: nil
         ),
         DemoWork(
             number: 8, kind: .comic, slug: "the-cats-midnight-kitchen",
-            title: DemoText(hant: "貓咪的深夜廚房", hans: "猫咪的深夜厨房", en: "The Cat's Midnight Kitchen"),
+            title: DemoText(hant: "貓咪的深夜廚房", hans: "猫咪的深夜厨房", en: "The Cat's Midnight Kitchen", ja: "猫の深夜キッチン"),
             synopsis: nil
         ),
         DemoWork(
             number: 9, kind: .book, slug: "sword-beyond-nine-skies",
-            title: DemoText(hant: "九霄問劍", hans: "九霄问剑", en: "Sword Beyond the Nine Skies"),
+            title: DemoText(hant: "九霄問劍", hans: "九霄问剑", en: "Sword Beyond the Nine Skies", ja: "九霄問剣"),
             synopsis: DemoText(
                 hant: "山門外的雲海三十年不散，少年劍修要在雲散之前，找到師父留下的最後一式劍招。",
                 hans: "山门外的云海三十年不散，少年剑修要在云散之前，找到师父留下的最后一式剑招。",
-                en: "The sea of clouds outside the mountain gate hasn't cleared in thirty years. A young swordsman must find his master's final technique before it does."
+                en: "The sea of clouds outside the mountain gate hasn't cleared in thirty years. A young swordsman must find his master's final technique before it does.",
+                ja: "山門の外の雲海は三十年間晴れたことがない。若き剣士は、雲が晴れる前に師の残した最後の剣技を見つけなければならない。"
             )
         ),
         DemoWork(
             number: 10, kind: .book, slug: "the-thirteenth-floor",
-            title: DemoText(hant: "寫字樓第十三層", hans: "写字楼第十三层", en: "The Thirteenth Floor"),
+            title: DemoText(hant: "寫字樓第十三層", hans: "写字楼第十三层", en: "The Thirteenth Floor", ja: "オフィスビルの十三階"),
             synopsis: nil
         ),
         DemoWork(
             number: 11, kind: .book, slug: "silent-testimony",
-            title: DemoText(hant: "無聲證詞", hans: "无声证词", en: "Silent Testimony"),
+            title: DemoText(hant: "無聲證詞", hans: "无声证词", en: "Silent Testimony", ja: "無言の証言"),
             synopsis: nil
         ),
         DemoWork(
             number: 12, kind: .book, slug: "song-of-the-voyager",
-            title: DemoText(hant: "遠航者之歌", hans: "远航者之歌", en: "Song of the Voyager"),
+            title: DemoText(hant: "遠航者之歌", hans: "远航者之歌", en: "Song of the Voyager", ja: "遠い航海者の歌"),
             synopsis: nil
         )
     ]
@@ -179,17 +189,17 @@ enum DemoContent {
     /// 不在 `sites` 里，演示 runtime 不认它们；域名同样只用 example.com / .org / .net。
     static let catalogExampleSites: [DemoSite] = [
         DemoSite(id: "demo-catalog.cinema", kind: .video, host: "cinema.example.com",
-                 name: DemoText(hant: "星港放映廳", hans: "星港放映厅", en: "Starport Cinema")),
+                 name: DemoText(hant: "星港放映廳", hans: "星港放映厅", en: "Starport Cinema", ja: "星港シネマ")),
         DemoSite(id: "demo-catalog.manga", kind: .comic, host: "manga.example.org",
-                 name: DemoText(hant: "放學後漫畫社", hans: "放学后漫画社", en: "After-School Manga Club")),
+                 name: DemoText(hant: "放學後漫畫社", hans: "放学后漫画社", en: "After-School Manga Club", ja: "放課後マンガ部")),
         DemoSite(id: "demo-catalog.novel", kind: .book, host: "novel.example.net",
-                 name: DemoText(hant: "九霄文庫", hans: "九霄文库", en: "Nine Skies Library")),
+                 name: DemoText(hant: "九霄文庫", hans: "九霄文库", en: "Nine Skies Library", ja: "九霄文庫")),
         DemoSite(id: "demo-catalog.anime", kind: .video, host: "anime.example.com",
-                 name: DemoText(hant: "夏日動畫館", hans: "夏日动画馆", en: "Summer Anime House")),
+                 name: DemoText(hant: "夏日動畫館", hans: "夏日动画馆", en: "Summer Anime House", ja: "夏のアニメ館")),
         DemoSite(id: "demo-catalog.webtoon", kind: .comic, host: "webtoon.example.org",
-                 name: DemoText(hant: "龍骨條漫", hans: "龙骨条漫", en: "Dragonbone Webtoons")),
+                 name: DemoText(hant: "龍骨條漫", hans: "龙骨条漫", en: "Dragonbone Webtoons", ja: "竜骨ウェブトゥーン")),
         DemoSite(id: "demo-catalog.audio", kind: .book, host: "audio.example.com",
-                 name: DemoText(hant: "霧城有聲書", hans: "雾城有声书", en: "Fog City Audiobooks"))
+                 name: DemoText(hant: "霧城有聲書", hans: "雾城有声书", en: "Fog City Audiobooks", ja: "霧の街オーディオブック"))
     ]
 
     static var catalogExamples: [CatalogSource] {
@@ -243,28 +253,29 @@ enum DemoContent {
     static func latestText(for kind: DemoKind) -> String {
         switch kind {
         case .video:
-            return DemoText(hant: "更新至第 12 集", hans: "更新至第 12 集", en: "Up to Ep. 12").value
+            return DemoText(hant: "更新至第 12 集", hans: "更新至第 12 集", en: "Up to Ep. 12", ja: "第12話まで更新").value
         case .comic:
-            return DemoText(hant: "連載至第 48 話", hans: "连载至第 48 话", en: "Up to Ch. 48").value
+            return DemoText(hant: "連載至第 48 話", hans: "连载至第 48 话", en: "Up to Ch. 48", ja: "第48話まで連載").value
         case .book:
-            return DemoText(hant: "已完結 · 120 章", hans: "已完结 · 120 章", en: "Completed · 120 ch.").value
+            return DemoText(hant: "已完結 · 120 章", hans: "已完结 · 120 章", en: "Completed · 120 ch.", ja: "完結 · 全120章").value
         }
     }
 
     static let defaultSynopsis: DemoText = DemoText(
         hant: "這是一部演示用的原創作品，簡介、封面與章節都是為截圖準備的示例內容。",
         hans: "这是一部演示用的原创作品，简介、封面与章节都是为截图准备的示例内容。",
-        en: "An original demo title. Its synopsis, cover and chapters are sample content made for screenshots."
+        en: "An original demo title. Its synopsis, cover and chapters are sample content made for screenshots.",
+        ja: "これはデモ用のオリジナル作品です。あらすじ、表紙、章はスクリーンショットのために用意したサンプルです。"
     )
 
-    static let episodeTitle: DemoText = DemoText(hant: "第 %d 集", hans: "第 %d 集", en: "Episode %d")
-    static let comicChapterTitle: DemoText = DemoText(hant: "第 %d 話", hans: "第 %d 话", en: "Chapter %d")
-    static let bookChapterTitle: DemoText = DemoText(hant: "第 %d 章", hans: "第 %d 章", en: "Chapter %d")
+    static let episodeTitle: DemoText = DemoText(hant: "第 %d 集", hans: "第 %d 集", en: "Episode %d", ja: "第%d話")
+    static let comicChapterTitle: DemoText = DemoText(hant: "第 %d 話", hans: "第 %d 话", en: "Chapter %d", ja: "第%d話")
+    static let bookChapterTitle: DemoText = DemoText(hant: "第 %d 章", hans: "第 %d 章", en: "Chapter %d", ja: "第%d章")
 
     static let videoAttributes: [(label: DemoText, value: DemoText)] = [
-        (DemoText(hant: "類型", hans: "类型", en: "Genre"), DemoText(hant: "科幻 / 冒險", hans: "科幻 / 冒险", en: "Sci-fi / Adventure")),
-        (DemoText(hant: "年份", hans: "年份", en: "Year"), DemoText(hant: "2026", hans: "2026", en: "2026")),
-        (DemoText(hant: "集數", hans: "集数", en: "Episodes"), DemoText(hant: "全 12 集", hans: "全 12 集", en: "12 episodes"))
+        (DemoText(hant: "類型", hans: "类型", en: "Genre", ja: "ジャンル"), DemoText(hant: "科幻 / 冒險", hans: "科幻 / 冒险", en: "Sci-fi / Adventure", ja: "SF / アドベンチャー")),
+        (DemoText(hant: "年份", hans: "年份", en: "Year", ja: "年"), DemoText(hant: "2026", hans: "2026", en: "2026", ja: "2026")),
+        (DemoText(hant: "集數", hans: "集数", en: "Episodes", ja: "話数"), DemoText(hant: "全 12 集", hans: "全 12 集", en: "12 episodes", ja: "全12話"))
     ]
 
     /// 中文注释：书籍阅读器截图用的一章正文；每本演示书的每一章都回这一份。
@@ -272,67 +283,80 @@ enum DemoContent {
         DemoText(
             hant: "山門外的雲海，已經三十年沒有散過了。",
             hans: "山门外的云海，已经三十年没有散过了。",
-            en: "The sea of clouds outside the mountain gate had not cleared in thirty years."
+            en: "The sea of clouds outside the mountain gate had not cleared in thirty years.",
+            ja: "山門の外の雲海は、もう三十年も晴れたことがなかった。"
         ),
         DemoText(
             hant: "沈青站在斷崖邊，衣角被風吹得獵獵作響。腳下是看不見底的白，遠處偶爾有一兩座山峰探出頭來，像沉在海裡的島。",
             hans: "沈青站在断崖边，衣角被风吹得猎猎作响。脚下是看不见底的白，远处偶尔有一两座山峰探出头来，像沉在海里的岛。",
-            en: "Shen Qing stood at the edge of the cliff, his robe snapping in the wind. Below him was bottomless white; now and then a peak rose out of it in the distance, like an island in a drowned sea."
+            en: "Shen Qing stood at the edge of the cliff, his robe snapping in the wind. Below him was bottomless white; now and then a peak rose out of it in the distance, like an island in a drowned sea.",
+            ja: "沈青は断崖の縁に立ち、衣の裾を風にはためかせていた。足元は底の見えない白。遠くでは時おり一つ二つの峰が顔を出し、海に沈んだ島のようだった。"
         ),
         DemoText(
             hant: "師父說過，雲散的那一天，就是那一式劍招現世的時候。可師父沒說，那一天究竟還要等多久。",
             hans: "师父说过，云散的那一天，就是那一式剑招现世的时候。可师父没说，那一天究竟还要等多久。",
-            en: "His master had said the technique would reveal itself on the day the clouds lifted. He had never said how long that day would take to come."
+            en: "His master had said the technique would reveal itself on the day the clouds lifted. He had never said how long that day would take to come.",
+            ja: "雲が晴れる日こそ、あの剣技が世に現れる時だと師は言った。だがその日がいつ来るのかは、ついに言わなかった。"
         ),
         DemoText(
             hant: "他低頭看了看手裡的劍。劍身很舊，刃口卻亮得像剛磨過，映出一線天光。",
             hans: "他低头看了看手里的剑。剑身很旧，刃口却亮得像刚磨过，映出一线天光。",
-            en: "He looked down at the sword in his hand. The blade was old, but its edge shone as if freshly honed, catching a thin line of sky."
+            en: "He looked down at the sword in his hand. The blade was old, but its edge shone as if freshly honed, catching a thin line of sky.",
+            ja: "彼は手の中の剣に目を落とした。剣身は古いが、刃は研いだばかりのように光り、一筋の天の光を映していた。"
         ),
         DemoText(
             hant: "「再等下去，雲不散，人倒先散了。」身後有人笑著說。",
             hans: "「再等下去，云不散，人倒先散了。」身后有人笑着说。",
-            en: "\"Wait much longer and the clouds won't lift — you'll just drift away yourself,\" someone behind him said with a laugh."
+            en: "\"Wait much longer and the clouds won't lift — you'll just drift away yourself,\" someone behind him said with a laugh.",
+            ja: "「これ以上待てば、雲が晴れる前に人のほうが消えてしまうぞ」背後で誰かが笑って言った。"
         ),
         DemoText(
             hant: "沈青沒有回頭。他知道來的是誰，也知道對方說得沒錯。只是這一次，他想試試看，不等雲散，自己走進雲裡去。",
             hans: "沈青没有回头。他知道来的是谁，也知道对方说得没错。只是这一次，他想试试看，不等云散，自己走进云里去。",
-            en: "Shen Qing didn't turn around. He knew who it was, and he knew they were right. But this time he wanted to try something else: not to wait for the clouds, but to walk into them."
+            en: "Shen Qing didn't turn around. He knew who it was, and he knew they were right. But this time he wanted to try something else: not to wait for the clouds, but to walk into them.",
+            ja: "沈青は振り返らなかった。誰が来たのかも、その言葉が正しいことも分かっていた。ただ今度は、雲が晴れるのを待たず、自分から雲の中へ入ってみたかった。"
         ),
         DemoText(
             hant: "風忽然停了。雲海像被誰輕輕撥開一道縫，縫的那頭，有一座他從沒見過的山。",
             hans: "风忽然停了。云海像被谁轻轻拨开一道缝，缝的那头，有一座他从没见过的山。",
-            en: "The wind stopped. The clouds parted as if brushed aside by an unseen hand, and through the gap stood a mountain he had never seen before."
+            en: "The wind stopped. The clouds parted as if brushed aside by an unseen hand, and through the gap stood a mountain he had never seen before.",
+            ja: "風がふいに止んだ。雲海は誰かにそっと押し開かれたように一筋の裂け目を見せ、その向こうに、見たことのない山があった。"
         ),
         DemoText(
             hant: "那座山沒有名字。山腰上懸著一道石階，一級一級伸進雲裡，看不見盡頭。",
             hans: "那座山没有名字。山腰上悬着一道石阶，一级一级伸进云里，看不见尽头。",
-            en: "The mountain had no name. A stone stair hung from its side, climbing step by step into the clouds until it vanished."
+            en: "The mountain had no name. A stone stair hung from its side, climbing step by step into the clouds until it vanished.",
+            ja: "その山に名はなかった。中腹には石段が懸かり、一段また一段と雲の中へ伸びて、終わりが見えなかった。"
         ),
         DemoText(
             hant: "沈青回頭看了一眼。身後的人已經不笑了，只是靜靜地看著那道縫，像在看一扇等了很久的門。",
             hans: "沈青回头看了一眼。身后的人已经不笑了，只是静静地看着那道缝，像在看一扇等了很久的门。",
-            en: "Shen Qing glanced back. The one behind him was no longer laughing, only watching the gap in silence, like someone looking at a door they had waited on for years."
+            en: "Shen Qing glanced back. The one behind him was no longer laughing, only watching the gap in silence, like someone looking at a door they had waited on for years.",
+            ja: "沈青は一度だけ振り返った。背後の人はもう笑っておらず、ただ静かにその裂け目を見つめていた。長く待った扉を見るように。"
         ),
         DemoText(
             hant: "「你去吧。」那人說，「師父當年，也是從這裡走的。」",
             hans: "「你去吧。」那人说，「师父当年，也是从这里走的。」",
-            en: "\"Go,\" they said. \"This is where the master left from, all those years ago.\""
+            en: "\"Go,\" they said. \"This is where the master left from, all those years ago.\"",
+            ja: "「行け」とその人は言った。「師匠もあの年、ここから出て行ったのだ」"
         ),
         DemoText(
             hant: "他把劍收回鞘裡，深吸一口氣，一腳踏上了第一級石階。石面冰涼，卻比他想的還要穩。",
             hans: "他把剑收回鞘里，深吸一口气，一脚踏上了第一级石阶。石面冰凉，却比他想的还要稳。",
-            en: "He sheathed his sword, drew a long breath and set his foot on the first step. The stone was cold, but steadier than he had expected."
+            en: "He sheathed his sword, drew a long breath and set his foot on the first step. The stone was cold, but steadier than he had expected.",
+            ja: "彼は剣を鞘に収め、深く息を吸い、最初の石段に足を踏み出した。石は冷たかったが、思ったよりずっと確かだった。"
         ),
         DemoText(
             hant: "第二級、第三級……雲從腳邊漫上來，漸漸沒過了膝蓋、腰際、肩頭。",
             hans: "第二级、第三级……云从脚边漫上来，渐渐没过了膝盖、腰际、肩头。",
-            en: "The second step, the third... the clouds rose around his feet, then his knees, his waist, his shoulders."
+            en: "The second step, the third... the clouds rose around his feet, then his knees, his waist, his shoulders.",
+            ja: "二段、三段……雲が足元から湧き上がり、やがて膝を、腰を、肩を越えた。"
         ),
         DemoText(
             hant: "等他再抬起頭時，四周只剩一片白。而在那片白的正中央，隱隱約約地，亮起了一線劍光。",
             hans: "等他再抬起头时，四周只剩一片白。而在那片白的正中央，隐隐约约地，亮起了一线剑光。",
-            en: "When he looked up again, there was only white all around. And at the very heart of it, faint but certain, a thin line of sword-light began to glow."
+            en: "When he looked up again, there was only white all around. And at the very heart of it, faint but certain, a thin line of sword-light began to glow.",
+            ja: "再び顔を上げたとき、辺りは一面の白だけだった。そしてその白の真ん中に、かすかに、しかし確かに、一筋の剣光が灯った。"
         )
     ]
 
@@ -340,7 +364,7 @@ enum DemoContent {
     /// 真正的列表、详情、正文由 `DemoSourceRuntimeResolver` 返回，选择器永远不会被执行。
     static func catalogSource(for site: DemoSite) -> CatalogSource {
         let name: String = site.name.value
-        let allTitle: String = DemoText(hant: "全部", hans: "全部", en: "All").value
+        let allTitle: String = DemoText(hant: "全部", hans: "全部", en: "All", ja: "すべて").value
         switch site.kind {
         case .comic:
             return CatalogSource(
