@@ -2163,3 +2163,11 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 
 - 用户裁定做 HANDOFF 挂账「`check-docs.py` 也核 `APP-MEMO` 引用」：`FWQ_DEF_RE` 同时收 `BC-*` 与 `APP-MEMO-*` 的 `- \`ID\`` 定义点，A2 把两族引用一起对 fwq 核（本机 56 个 BC、16 个 APP-MEMO 全有定义点），A3 的本地定义点正则同样覆盖两族、扫描范围从全部文档收到 C 类——第一次跑时 status-log 里「- `APP-MEMO-035`：在 fwq 只曾是…」这条叙事项被当成定义点报了，H 类按 `BCA-DOC-009` 本就不构成约束。fwq 不可达时的跳过文案写明两族各多少条。scripts/README 的 A2 / A3 一句同步，HANDOFF 该行删除，STATUS 第 5 节加一行。
 - STATUS 检查点：取用幂等键行与第 13 节 #2 / #5 / #6 三行由动手时的 HEAD `eaf2d05f` 改为落地提交 `db207e33`；第 15 节实施行与观感项行由 `2b7f58af` 改为 `eaf2d05f`。
+
+## 2026-10-23 控制台三项（用户要求在 Chrome 里做，已登录）
+
+- 应用内浏览器里两个 Google 账号都是已退出，用户说登录在 Chrome，改用 Claude in Chrome。
+- GCP 凭据页：两把 Firebase 自动建的 key。「iOS key」限制栏为「iOS 应用, 25 APIs」，详情里 iOS 限制只有 `com.xiefei.AnyPortal`；显示密钥后首尾与 `GoogleService-Info.plist` 的 `API_KEY` 一致，就是 App 在用的那把。审计清单 #12「给 Firebase API key 加 iOS bundle 限制」早已成立，未改任何设置。另一把「Browser key」只有 25 个 API 限制、没有应用限制；App 不用它，按清单范围没动（要收紧的话是另一件事）。
+- CloudKit 控制台 Development 有 `AppUserIdentity` / `FavoriteItem` / `HistoryEntry` / `Source` / `Users` 五个类型；「Deploy Schema Changes」的确认框列 Record Types (0)、Indexes (0)、Security Roles (0)，Production 已与 Development 一致（10-04 部署、10-04 加 `itemID` 后再部署），点 Cancel，未部署。
+- Firebase In-App Messaging：「新账户欢迎页」投放中（10-18 起，10-22 更新），「限时活动 · 送 300 coin」仍是无开始日期的草稿。它的前置是活动入账脚本（未写）与用户发活动的指令，本次只看状态、未改。
+- STATUS 第 13 节 #12 拆出一行记这两件核对（static-audit-passed），其余五件留原行；HANDOFF 审计行 ③ 同步。
