@@ -861,7 +861,7 @@
 "comic_detail_start_from_first" = "第1話から読む";
 "comic_detail_start_with" = "読み始める · %@";
 "comic_detail_start_reading" = "読み始める";
-"comic_detail_section_chapters" = "話";
+"comic_detail_section_chapters" = "目次";
 "comic_detail_chapter_count" = "%ld話";
 "comic_detail_read_count" = "既読%ld";
 "comic_detail_read" = "既読";
