@@ -35,6 +35,8 @@ python3 scripts/check-docs.py
 
 | 挂账 | 欠什么 | 合同 | STATUS |
 | --- | --- | --- | --- |
+| 本机（Mac）checkout 与远端对齐：10-22 收尾三笔（`.text` 闸门、`APP-MEMO-035` 改指、fwq `app-memos.md` 常驻表）原在本机未推，桥接会话归档后由云端按原脚本重做推送，本机那三笔与远端同内容、不同哈希 | Mac 上对 BrowseCraft 与 fwq 各跑 `git fetch origin && git log --oneline origin/main..main`：只列那三笔（哈希见 status-log）就 `git reset --hard origin/main`；多出别的提交先报、不 reset；同一时刻归档的另两个桥接会话也可能留了本地提交，六仓各核一次 | — | 第 10 节 `BCA-OBS-012` 行；status-log「2026-10-22 收尾三笔云端重做」 |
+| `check-docs.py` 也核 `APP-MEMO` 引用（A2 / A3 现只查 `BC-*`；定义点在 fwq `app-memos.md`，fwq 不在时按 A0 的做法跳过并报告） | 立项，用户未裁定 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第三节的引用是现成样例 | — |
 | 取用公共规则重试沿用同一 `Idempotency-Key`（服务端 PortalCore 2026-10-21 已收：请求头 `[A-Za-z0-9._:-]{1,128}`，同用户、同网址、同键 24 小时内重发只扣一次、返回同样的 coinCharged） | 网址输入页每次「滑动取用」生成一个键（UUID 即可）、超时重发沿用同一键；不带键的行为不变（再扣一次）。10-21 发布前审计留首发后项② | PortalCore `docs/api/rule-generation.md`「coin」节；审计 https://claude.ai/artifact/EVW1iCtAq44dFangavfyBL | — |
 | 活动与生成率提示（`BCA-UI-004` / `BCA-UI-005` / `BCA-SYNC-012`；设计书、画布链接在合同头部） | 真机没看的：成功率一行有数据时的文案（新账号提交生成的次日汇总后才有数）、活动推送点击；服务端未做：活动入账脚本与新记账原因（要迁移，等发活动前再做）；Firebase 控制台「限时活动 · 送 300 coin」是草稿，用户说发再发——先跑入账脚本并报人数，再按活动天数改「首次打开超过 N 天前」、填起止日期后发布 | [Campaign-And-Rate-Notices](docs/design/Campaign-And-Rate-Notices-Design.md) 第五、七、八节 | 第 11 节 |
 | 页内问题报告（`BCA-OBS-018` ~ `022`、`BCA-UI-006`；设计书 https://claude.ai/artifact/R1jd8HR8q6hKoSKh1vTjMB） | 第二期（用户 2026-10-20：目前做不了）：合同第九节排查第 4、5 步的查询脚本写在 PortalCore 仓，只做脚本、不做自动告警；线上现有的走查报告写脚本时当样本、统计时排除（编号见 status-log）；只读查线上库：ssh 到服务器后在 PortalCore 目录下 `docker compose exec -T api python -`，脚本里用 `app.platform.config.DB_PATH` 以 `mode=ro` 打开。第一期另欠：漫画详情与站点书详情的模拟器走查（模拟器来源位置 1 / 1）与真机 | [Problem-Report](docs/design/Problem-Report-Design.md) 第九、十一节 | 第 12 节 |

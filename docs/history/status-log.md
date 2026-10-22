@@ -2082,3 +2082,9 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - `APP-MEMO-035`：在 fwq 只曾是 `docs/rules/STATUS.md` 的一行（10-12 立，判据正文在设计稿第 46 节），10-20 fwq 审计按 `BC-DOC-059` 整行退休进 `docs/history/status-log.md`，第 46 节同日随冻结稿分流进归档卷；fwq 的 C 类里现在没有这个 ID。`APP-MEMO-044` / `045` 同一形态（只在 STATUS 行里，退休后同样失去承载），`clause-index.md` 不索引 `APP-MEMO`，本仓 A2 不查它。结论：fwq 侧缺一张常驻的 `APP-MEMO` 表；本仓引用改指引擎条款（`BC-BOOK-064` / `BC-EPISODE-020`）待用户定。
 - `.text` 字段：全仓 265 处，264 处在 debug、1 处在 error（`BookReaderView.swift` `book-navigator-error`，10-21 加，Release 下只记 `len=N`）。用户裁定加闸门：`check-architecture-boundaries.sh` 按括号配平找出 info 及以上调用里的 `.text(` 判失败（探针文件自测命中跨行字典一处、放过 debug 一处），那一处改为 `.content(description)`；Logging-Design 第 4 节 `text` 一行与 scripts/README 各补一句。STATUS 第 10 节新增一行（检查点为当时 HEAD，闸门脚本与代码在同一笔提交）。
 - 处置（用户同日裁定）：fwq 新建 `docs/rules/app-memos.md` 常驻表（`BC-DOC-061`，闸门 C19 把它当定义点，STATUS 行照退表不退）；本仓 Book-Kind-Wiring 第三节与 Library-Book 第二节对 `APP-MEMO-035` 的引用改指 fwq `BC-BOOK-064` / `BC-EPISODE-020`，Book-Kind 一处保留「App 侧备忘在 fwq `app-memos.md`」的指针。
+
+## 2026-10-22 收尾三笔云端重做（桥接会话归档、本机提交未推；用户「帮我重新做三个提交推送上去」）
+
+- 本机未推的三笔：BrowseCraft `e8c1e7d7`（`.text` 闸门）、`9adab207`（`APP-MEMO-035` 改指）、fwq `d2e2c8af`（`app-memos.md`）。做它们的桥接会话 10-22 00:49 与另三个桥接会话同一秒被归档（证据指向本机 Claude Code 自动更新重启：10-21→10-22 版本 2.1.299→2.1.304），本机不可达。
+- 云端从归档会话的记录里取出当时写文件的原始脚本逐字重放：fwq `1ae6b30`、BrowseCraft `d87b6a9` / `c699b39`，均推到各自 `origin/main`。闸门读数与本机一致：fwq `check_docs` 条款定义点 1215、APP-MEMO 定义点 45 / 引用 45、索引 1213 条；本仓架构闸门干净（六仓全扫）、探针自测命中跨行一处放过 debug 一处、文档闸门全过（A2 100 个 BCA / 56 个 BC 引用）。按 AGENTS 未 build、未跑测试。
+- 本机那三笔与远端同内容不同哈希，待本机 `git reset --hard origin/main` 对齐（先核 `origin/main..main` 只有这三笔）。审计报告 artifact 第七部分同日改口为已推送并补「其后收尾」一段。
