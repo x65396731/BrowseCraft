@@ -428,16 +428,20 @@ struct VideoDetailView: View {
                 await self.viewModel.openEpisode(episode)
             }
         } label: {
+            // 中文注释：解析中标签只是变透明、不拿掉——格子宽度仍由标签撑着。此前解析中只剩一个 ProgressView，
+            // 流式布局（`expands == false`）下格子塌成转圈那么窄，再叠上「上次看的那一集」左上角的小三角，
+            // 看起来像一颗坏掉的窄胶囊（2026-10-22 spankbang 真机截图）。
             ZStack {
+                Text(self.viewModel.displayLabel(for: episode))
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, expands ? 6 : 18)
+                    .opacity(isResolving ? 0 : 1)
+                    .accessibilityHidden(isResolving)
                 if isResolving {
                     ProgressView()
                         .tint(self.style.accent)
-                } else {
-                    Text(self.viewModel.displayLabel(for: episode))
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .padding(.horizontal, expands ? 6 : 18)
                 }
             }
             .frame(height: 44)
