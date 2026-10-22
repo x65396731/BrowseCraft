@@ -565,7 +565,7 @@ struct VideoGenerationInputView: View {
 
     /// 中文注释：成功率一行（合同第三节）两种文案：有百分比时「{地区} · 近 {N} 天{普通 / 困难模式}生成成功 {百分比}」；
     /// 样本不足、`rate` 为空时「{地区} · 近 {N} 天{普通 / 困难模式}生成 {总次数} 次，成功 {成功次数} 次」。百分比或成功次数用
-    /// 主文字色 semibold。地区由 App 把服务端的两位国家码按系统语言本地化，`scope` 为 global 时写「全部地区」；当前档没有数
+    /// 主文字色 semibold。地区由 App 把服务端的两位国家码按 App 界面语言本地化，`scope` 为 global 时写「全部地区」；当前档没有数
     /// （请求失败、`samples` 为 0、本地区判断不出）时返回 nil，这一行不显示。App 不估算、不写死数字。
     private var generationRateLine: AttributedString? {
         guard let rates: GenerationRates = self.generationRates,
@@ -581,7 +581,10 @@ struct VideoGenerationInputView: View {
             guard let code: String = rates.region, code.isEmpty == false else {
                 return nil
             }
-            regionName = Locale.current.localizedString(forRegionCode: code) ?? code
+            // 中文注释：地区名按 App 实际界面语言取（主 bundle 的首选本地化），与这句话其余部分同一种语言；系统是 App
+            // 不支持的语言时界面落到英文，地区名也跟着英文，不再夹一个系统语言的地名（日语本地化设计书 Q5，用户 2026-10-22 裁定）。
+            let interfaceLocale: Locale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+            regionName = interfaceLocale.localizedString(forRegionCode: code) ?? code
         }
         let text: String
         let emphasized: String

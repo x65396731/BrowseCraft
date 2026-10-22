@@ -33,7 +33,7 @@
 - Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。文字资源由 `ReadiumSitePublicationBuilder` 装成 `Publication` 直接喂 EPUB Navigator（不带 `httpServer`，App 不链接 `ReadiumAdapterGCDWebServer`）。
 
 **批次 C：Features**
-- `AddSourceView` 的类型横幅含书籍（三张横幅在同一层 sheet 进 `EntryPageGuideFlowView`，见 [添加来源页](Add-Source-Page-Redesign-Design.md)）；Library 按 kind 显示书籍卡；阅读器：EPUB Navigator 与 Audio Navigator（Audio 无 UI，自建播放器界面）；书签用 `Locator` 序列化落库，与漫画、视频进度模型互不干扰；各语言的 `Localizable.strings`（en / zh-Hans / zh-Hant）各加键（`scripts/check-localization.py` 在编译后核对键集一致）。
+- `AddSourceView` 的类型横幅含书籍（三张横幅在同一层 sheet 进 `EntryPageGuideFlowView`，见 [添加来源页](Add-Source-Page-Redesign-Design.md)）；Library 按 kind 显示书籍卡；阅读器：EPUB Navigator 与 Audio Navigator（Audio 无 UI，自建播放器界面）；书签用 `Locator` 序列化落库，与漫画、视频进度模型互不干扰；各语言的 `Localizable.strings` 各加键（`scripts/check-localization.py` 在编译后核对键集一致）。
 
 **不在范围**：本地文件导入（EPUB / PDF / M4B）、PDF Navigator、`text-api` 站（生成侧只有合成固定输入）、带签名音频、VIP 章正文为空的处理（`BC-BOOK-039` 无正例）。
 

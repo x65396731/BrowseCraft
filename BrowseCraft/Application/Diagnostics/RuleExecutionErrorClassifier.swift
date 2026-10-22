@@ -96,8 +96,15 @@ enum RuleExecutionErrorClassifier {
             return NSLocalizedString(key, comment: "")
         }
         func withReason(_ key: String, _ reason: String) -> String {
+            // 中文注释：第二行是子包 / 底层给的原因串（硬写在 Core / Runtime / Domain / APIKit 里，多为英文，不走本地化），
+            // Release 只显示第一行的本地化文案，第二行只在 Debug 拼上；原因串照旧进日志与问题报告的失败信息
+            // （日语本地化设计书 Q3，用户 2026-10-22 裁定）。
+            #if DEBUG
             let trimmed: String = reason.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? localized(key) : "\(localized(key))\n\(trimmed)"
+            #else
+            return localized(key)
+            #endif
         }
         switch classifiedError {
         case .network(_, let underlyingDescription):
