@@ -29,7 +29,7 @@
 - App：`RuleGenerationSourceKind.book`、`APIKitVideoGenerationTaskClient` 映射、`CatalogSourceMaterializer` 的 book 分支（把 catalog 装成 `SourceConfiguration.book`）；其余 `case .comic` 分流点按编译器报缺补齐，UI 文案先用最小占位。
 
 **批次 B：Runtime 与 RWPM 装配（首次整包 build 在此批之前）**
-- Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；reader 路径（在 `BookSourceRuntime` 内）按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`audio-media` 取 `media.item` 作用域内的 `media.url`；`text-api` 与 `mediaAPI` 明确抛不支持（无语料）；章内 `content.next` 拼成一份资源。两条本层只引用：播放页型有声章节——规则全为有声且 `media` 为 DOM 取址时章节地址可为播放页，App 装成音频章节、播放时取页解析音频地址（fwq `APP-MEMO-035`）；单篇作品补一章——作品页没有章节链接、全文写在作品页本身时 Runtime 补一章指向作品页（fwq `BC-BOOK-066`）。
+- Runtime：`Book/` 包——`BookSourceRuntimeFactory`（`guard case .book`）、list / detail / search loader 复用 comic 的 DOM 取值原语（`ExtractRule` 投影与 comic 同源）；reader 路径（在 `BookSourceRuntime` 内）按 `variant` 分派：`text-dom` 取容器 + `segmentation`（`elements` 取段落元素、`lineBreaks` 取 `<br>` 间文本节点），`audio-media` 取 `media.item` 作用域内的 `media.url`；`text-api` 与 `mediaAPI` 明确抛不支持（无语料）；章内 `content.next` 拼成一份资源。两条本层只引用：播放页型有声章节——规则全为有声且 `media` 为 DOM 取址时章节地址可为播放页，App 装成音频章节、播放时取页解析音频地址（fwq `BC-BOOK-064` / `BC-EPISODE-020`，App 侧备忘 `APP-MEMO-035` 在 fwq `app-memos.md`）；单篇作品补一章——作品页没有章节链接、全文写在作品页本身时 Runtime 补一章指向作品页（fwq `BC-BOOK-066`）。
 - Application：`BookPublicationAssembler`——detail → `metadata`，章节 → `readingOrder[]`（`title / order / href`），`text` 资源装成 XHTML、`audio` 资源按 `media.format` 映射 `type`；输出给 Readium `Publication`。文字资源由 `ReadiumSitePublicationBuilder` 装成 `Publication` 直接喂 EPUB Navigator（不带 `httpServer`，App 不链接 `ReadiumAdapterGCDWebServer`）。
 
 **批次 C：Features**

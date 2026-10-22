@@ -36,7 +36,7 @@
 | 编号 | `idCode` | 两份声明了，解析器不读 | 不显示 |
 | 作者 | 列表规则不给；详情合同允许 `author`，七份没有一份声明 | 没有 | 不显示，本轮不留位 |
 
-**有声书在列表层没有任何标记。** App 是进了详情、按章节地址扩展名（或整站有声且 reader 带 DOM 取址，fwq `APP-MEMO-035`）判断出 `isAudiobook` 的。来源级有现成的事实：
+**有声书在列表层没有任何标记。** App 是进了详情、按章节地址扩展名（或整站有声且 reader 带 DOM 取址，fwq `BC-BOOK-064` / `BC-EPISODE-020`）判断出 `isAudiobook` 的。来源级有现成的事实：
 `BookSourceConfiguration.rule.ruleSets.readerRules[].contentType`——Loyal Books 全是 `audio`，其余六份全是 `text`。
 规则合同允许一个来源同时有 text 与 audio 两种 reader 规则，那种站列表层判不出。所以列表页能知道的是三档：整站有声 / 整站文字 / 混合（不标）。
 
