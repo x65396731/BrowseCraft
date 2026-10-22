@@ -12,6 +12,8 @@ struct SettingsView: View {
     @Bindable var viewModel: SettingsViewModel
     @Bindable private var cloudSyncViewModel: CloudSyncSettingsViewModel
     private let contentLockStore: ContentLockStore
+    /// 「关于」组「新手引导」：宿主切到来源页重放（`docs/design/Onboarding-Design.md` 第六节）。
+    private let replayOnboarding: () -> Void
     @State private var adPlaybackViewModel: AdPlaybackViewModel = AdPlaybackViewModel()
     @Environment(\.rewardedAdRewardCoordinator) private var rewardedAdRewardCoordinator
     @AppStorage(CrashDiagnostics.collectionEnabledDefaultsKey) private var isDiagnosticsEnabled: Bool = CrashDiagnostics.isCollectionEnabled
@@ -35,11 +37,13 @@ struct SettingsView: View {
     init(
         viewModel: SettingsViewModel,
         cloudSyncViewModel: CloudSyncSettingsViewModel,
-        contentLockStore: ContentLockStore
+        contentLockStore: ContentLockStore,
+        replayOnboarding: @escaping () -> Void
     ) {
         self.viewModel = viewModel
         self.cloudSyncViewModel = cloudSyncViewModel
         self.contentLockStore = contentLockStore
+        self.replayOnboarding = replayOnboarding
     }
 
     var body: some View {
@@ -445,6 +449,21 @@ struct SettingsView: View {
 
     private var aboutGroup: some View {
         SettingsCardGroup(title: NSLocalizedString("settings_section_about", comment: "分组：关于")) {
+            // 中文注释：新手引导回看（Onboarding-Design.md 第六节）：切到来源页重放欢迎卡与三步。
+            Button(
+                action: self.replayOnboarding,
+                label: {
+                    SettingsRow(
+                        image: "SettingsOnboarding",
+                        title: NSLocalizedString("settings_onboarding_row", comment: "关于：新手引导"),
+                        accessory: .chevron
+                    )
+                }
+            )
+            .buttonStyle(SettingsRowButtonStyle())
+
+            SettingsRowSeparator()
+
             SettingsRow(
                 image: "SettingsVersion",
                 title: NSLocalizedString("Version", comment: ""),

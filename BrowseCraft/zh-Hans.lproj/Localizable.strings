@@ -1153,3 +1153,21 @@
 "temporary_detail_source_page" = "来源页面";
 "video_preflight_submit_failed_local" = "提交没有完成，请检查网络后再试。";
 "video_preflight_submit_failed_recheck" = "提交没有完成，请重新检查网址后再提交。";
+
+/* 新手引导（docs/design/Onboarding-Design.md）：欢迎卡、来源页三步、库页一步、设置页回看 */
+"onboarding_welcome_title" = "把常看的网站装进来";
+"onboarding_welcome_message" = "AnyPortal 自己不放内容。你添加一个网站，它的视频、漫画或书就整理进库里。先带你看一圈，再加第一个网站。";
+"onboarding_start" = "开始";
+"onboarding_skip" = "跳过";
+"onboarding_next" = "下一步";
+"onboarding_done" = "知道了";
+"onboarding_step_counter" = "%1$d / %2$d";
+"onboarding_step_sources_empty" = "来源就是一个网站。添加一个，它的内容就按视频、漫画、书籍整理成库。网站是你自己选的。";
+"onboarding_step_sources_in_use" = "正在使用的网站在这里，点卡片打开它的库。来源就是一个网站，内容按视频、漫画、书籍整理成库。";
+"onboarding_step_tabs" = "常用的是这三个：来源管网站，库看当前网站的内容，历史接着上次看。登录、coin 和 iCloud 同步在设置里。";
+"onboarding_step_entry_cards" = "两条路加第一个网站：目录里挑现成的，或贴网址生成（要登录，新账号有赠送的 coin）。";
+"onboarding_step_entry_capsule" = "再加一个网站从这里：目录里挑现成的，或贴网址生成（要登录，新账号有赠送的 coin）。";
+"onboarding_step_entry_hint" = "点亮着的卡片继续";
+"onboarding_step_entry_capsule_hint" = "点亮着的按钮继续";
+"onboarding_library_hint" = "第一个网站进来了。点封面打开作品，右上角的爱心收藏；看过的会出现在历史里，点一下接着看。";
+"settings_onboarding_row" = "新手引导";

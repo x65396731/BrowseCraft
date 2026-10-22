@@ -51,6 +51,8 @@ struct RootView: View {
     @State private var cloudSyncSettingsViewModel: CloudSyncSettingsViewModel
     @State private var startupCoordinator: StartupCoordinator
     @State private var selectedTab: RootTab = .library
+    /// 中文注释：新手引导的阶段机（`docs/design/Onboarding-Design.md`）；经环境给来源页告知入口被点。
+    @State private var onboardingTour: OnboardingTourStore = OnboardingTourStore()
 
     init(container: AppContainer) {
         let sourcesViewModel: SourcesViewModel = container.makeSourcesViewModel()
@@ -95,6 +97,11 @@ struct RootView: View {
     var body: some View {
         ZStack {
             self.mainTabView
+                // 中文注释：新手引导的聚光灯气泡层盖在标签页上、开屏层之下（`docs/design/Onboarding-Design.md` 第三节）；
+                // 各页用 `spotlightTarget` 登记的目标矩形从这里读。
+                .overlayPreferenceValue(SpotlightAnchorKey.self) { anchors in
+                    self.onboardingOverlay(anchors: anchors)
+                }
                 .allowsHitTesting(self.startupCoordinator.phase.isDismissed)
                 .accessibilityHidden(self.startupCoordinator.phase.isDismissed == false)
 
@@ -120,6 +127,7 @@ struct RootView: View {
         .environment(\.systemCookieHeaderProvider, self.systemCookieHeaderProvider)
         .environment(\.rewardedAdRewardCoordinator, self.coinWalletStore)
         .environment(\.problemReportSubmitter, self.problemReportUseCase)
+        .environment(self.onboardingTour)
         .task {
             self.startupCoordinator.start()
         }
@@ -149,9 +157,15 @@ struct RootView: View {
                 await self.sourcesViewModel.syncAddedSourcesWithCatalog()
             }
         }
-        .onChange(of: self.selectedTab) { _, _ in
+        .onChange(of: self.selectedTab) { _, tab in
             // 中文注释：切到锁着的收藏或历史时自动拉起一次验证；取消后停在锁定态，等下次切进来或回到前台。
             self.promptContentUnlockIfNeeded(trigger: .tabSwitch)
+            // 中文注释：新手引导库页那一步：切到库就等它登记第一张封面，离开库就作废（Onboarding-Design.md 第五节）。
+            if tab == .library {
+                self.onboardingTour.requestLibraryHint()
+            } else {
+                self.onboardingTour.cancelPendingLibraryHint()
+            }
         }
         .onChange(of: self.sourcesViewModel.latestSourceAddID) { _, sourceID in
             guard sourceID != nil else {
@@ -160,6 +174,8 @@ struct RootView: View {
 
             DispatchQueue.main.async {
                 self.selectedTab = .library
+                // 中文注释：已经停在库标签时 `selectedTab` 不变，这里再登记一次；阶段机自己去重。
+                self.onboardingTour.requestLibraryHint()
             }
         }
         #if DEBUG
@@ -268,13 +284,51 @@ struct RootView: View {
             SettingsView(
                 viewModel: self.settingsViewModel,
                 cloudSyncViewModel: self.cloudSyncSettingsViewModel,
-                contentLockStore: self.contentLockStore
+                contentLockStore: self.contentLockStore,
+                // 中文注释：「关于」组「新手引导」：切到来源页重放欢迎卡与三步（Onboarding-Design.md 第六节）。
+                replayOnboarding: {
+                    self.selectedTab = .sources
+                    self.onboardingTour.replay()
+                }
             )
                 .tabItem {
                     Image("TabSettings")
                     Text("Settings")
                 }
                 .tag(RootTab.settings)
+        }
+    }
+
+    /// 新手引导的当前步交给聚光灯气泡层画；库页那一步要等第一张封面登记上来才从等待变为显示。
+    @ViewBuilder
+    private func onboardingOverlay(anchors: [SpotlightTarget: Anchor<CGRect>]) -> some View {
+        let hasSources: Bool = self.sourcesViewModel.sources.isEmpty == false
+        let hasFirstCover: Bool = anchors[.libraryFirstCover] != nil
+        ZStack {
+            if let step: SpotlightTourStep = self.onboardingTour.currentStep(hasSources: hasSources) {
+                SpotlightTourOverlay(
+                    step: step,
+                    anchors: anchors,
+                    skipTitle: NSLocalizedString("onboarding_skip", comment: "新手引导「跳过」"),
+                    primaryAction: {
+                        self.onboardingTour.advance()
+                    },
+                    skipAction: {
+                        self.onboardingTour.skip()
+                    }
+                )
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: self.onboardingTour.phase)
+        .onChange(of: hasFirstCover, initial: true) { _, present in
+            if present {
+                self.onboardingTour.showLibraryHintIfPending()
+            }
+        }
+        .onChange(of: self.onboardingTour.phase) { _, _ in
+            if hasFirstCover {
+                self.onboardingTour.showLibraryHintIfPending()
+            }
         }
     }
 
@@ -343,6 +397,13 @@ struct RootView: View {
                 self.selectedTab = initialTab
             }
             #endif
+
+            // 中文注释：落到来源页且本机没有来源时起新手引导的欢迎卡（Onboarding-Design.md 第二节）。
+            if self.selectedTab == .sources {
+                self.onboardingTour.startFirstRunIfNeeded(
+                    hasSources: self.sourcesViewModel.sources.isEmpty == false
+                )
+            }
 
             AppAnalytics.shared.logStartupFinished(
                 outcome: Self.startupOutcome(for: unlockReason),

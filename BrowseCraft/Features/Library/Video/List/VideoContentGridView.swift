@@ -44,6 +44,8 @@ struct VideoContentGridView: View {
                         },
                         imageRequestConfig: self.imageRequestConfig
                     )
+                    // 中文注释：新手引导库页那一步的聚光目标：只有第一张卡登记（`docs/design/Onboarding-Design.md` 第四节）。
+                    .spotlightTarget(.libraryFirstCover, isActive: item.id == self.items.first?.id)
                 }
 
                 if let nextPage: Int = self.nextPage {

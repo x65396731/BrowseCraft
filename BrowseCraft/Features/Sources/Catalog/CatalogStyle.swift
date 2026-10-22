@@ -124,6 +124,10 @@ enum CatalogPalette {
     static let headerScrim: Color = Color.black.opacity(0.45)
     /// 固定深色瓷砖 / 头图上的半透明白：进度条轨道、圆按钮底、徽章底，统一 16%（原各处 14% / 16% / 18%）。
     static let onDarkFill: Color = Color.white.opacity(0.16)
+    /// 新手引导聚光灯气泡层的蒙层（`docs/design/Onboarding-Design.md` 第八节）：黑 55%，深色下 65%。
+    static let tourScrim: Color = Color(uiColor: UIColor { traits in
+        return UIColor.black.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.65 : 0.55)
+    })
 
     // MARK: 有声书播放页（沉浸深色，不随系统；Audiobook-Player-Page-Redesign-Design.md 第八节）
     /// 主字、播放键底、进度已听部分、滑块：白。

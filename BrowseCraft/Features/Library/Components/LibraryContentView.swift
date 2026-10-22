@@ -97,6 +97,8 @@ struct LibraryContentView: View {
                                 self.continueComicReading(item)
                             }
                         )
+                        // 中文注释：新手引导库页那一步的聚光目标：只有第一张封面登记（Onboarding-Design.md 第四节）。
+                        .spotlightTarget(.libraryFirstCover, isActive: item.id == self.items.first?.id)
                     }
                 }
 
@@ -133,6 +135,8 @@ struct LibraryContentView: View {
                                     self.continueBookReading(item)
                                 }
                             )
+                            // 中文注释：新手引导库页那一步的聚光目标：只有第一行登记。
+                            .spotlightTarget(.libraryFirstCover, isActive: index == 0)
                             if index < self.items.count - 1 {
                                 Divider()
                                     .padding(.leading, 72)

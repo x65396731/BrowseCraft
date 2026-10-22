@@ -1153,3 +1153,21 @@
 "temporary_detail_source_page" = "Source Page";
 "video_preflight_submit_failed_local" = "The submission did not go through. Check your network and try again.";
 "video_preflight_submit_failed_recheck" = "The submission did not go through. Check the URL again before submitting.";
+
+/* Onboarding (docs/design/Onboarding-Design.md): welcome card, three steps on Sources, one on Library, replay from Settings */
+"onboarding_welcome_title" = "Bring in the sites you already use";
+"onboarding_welcome_message" = "AnyPortal has no content of its own. Add a website and its videos, comics or books are organized into your library. Let’s take a quick look around, then add your first site.";
+"onboarding_start" = "Get Started";
+"onboarding_skip" = "Skip";
+"onboarding_next" = "Next";
+"onboarding_done" = "Got It";
+"onboarding_step_counter" = "%1$d / %2$d";
+"onboarding_step_sources_empty" = "A source is a website. Add one and its content is organized into a library by video, comic or book. You choose the sites.";
+"onboarding_step_sources_in_use" = "The site in use is here; tap the card to open its library. A source is a website, and its content is organized into a library by video, comic or book.";
+"onboarding_step_tabs" = "You’ll mostly use these three: Sources manages sites, Library shows the current site’s content, History picks up where you left off. Sign-in, coin and iCloud sync are in Settings.";
+"onboarding_step_entry_cards" = "Two ways to add your first site: pick a ready-made one from the catalog, or paste a URL to generate (sign-in required; new accounts get free coin).";
+"onboarding_step_entry_capsule" = "Add another site from here: pick one from the catalog, or paste a URL to generate (sign-in required; new accounts get free coin).";
+"onboarding_step_entry_hint" = "Tap a highlighted card to continue";
+"onboarding_step_entry_capsule_hint" = "Tap the highlighted button to continue";
+"onboarding_library_hint" = "Your first site is in. Tap a cover to open it, and the heart in the corner to favorite it. Anything you’ve watched shows up in History; tap to continue.";
+"settings_onboarding_row" = "Quick Tour";

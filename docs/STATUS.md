@@ -335,3 +335,14 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 生成率一行的地区名按 App 界面语言取（Q5）：`VideoGenerationInputView.generationRateLine` 用主 bundle 首选本地化构造的 `Locale` 取地区名 | 未编号 | required | approved | implemented | not-run | 04e58ecf | 2026-10-22 |
 | 仓外：PortalCore 隐私政策 article#ja 与支持页日语段（PortalCore 仓已提交并已部署上线，法律文本待译者复核）；App Store 日语产品页与 5 个内购日语名称草稿 `docs/release/app-store-listing-ja.md`；Firebase In-App Messaging 两条活动的日语译文已在控制台填好（限时活动草稿已存；欢迎页为投放中的活动，日语译文已发布） | 未编号 | required | approved | implemented | not-run | 04e58ecf | 2026-10-22 |
 | fwq 把无 `lang` 的日文页误判为简中（Q7）：另立 fwq 工作项按通用机制修（例如先看假名占比），不在本批 | 未编号 | required | approved | not-started | not-run | 04e58ecf | 2026-10-22 |
+
+## 15. 新手引导（2026-10-22）
+
+设计书与九项裁定（用户 2026-10-22 全取 A）见 Claude 文档「新手引导设计书」（https://claude.ai/artifact/CFensej5PMBCN7cv8HDrwS），
+画布见「新手引导设计稿」（https://claude.ai/artifact/PeMDXENKHakku2SdMZjycK）。合同在 [design/Onboarding-Design.md](design/Onboarding-Design.md)。
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 合同：页内引导（欢迎卡 + 来源页三步聚光灯 + 库页一步）代替独立介绍页，引导层不持有页面逻辑、每步可跳过、第 3 步出口是用户点真实控件、只在本机无来源且未看过时出现，设置页「关于」组回看，事件 `onboarding_finished` 不新增参数 | `BCA-UI-009` | required | approved | implemented | not-run | 190c6e8e | 2026-10-22 |
+| 实施：通用层 `SpotlightTourOverlay` 与目标登记 `spotlightTarget`、`OnboardingGuide` / `OnboardingTourStore`、根视图叠层与起止时机、来源页四个目标与入口告知、三种库网格第一张卡目标、设置页回看行与新图标、埋点枚举与四语词条、`tourScrim`；用户要求 build，Debug build 通过（iPhone 18 Pro / iOS 27.0），单元测试未跑 | `BCA-UI-009` | required | approved | implemented | not-run | 190c6e8e | 2026-10-22 |
+| 同上，模拟器走查（iPhone 18 Pro / iOS 27.0，Debug）：空库首装开屏后自动出欢迎卡 → 三步挖空分别落在空状态块、悬浮底栏、两张入口卡 → 点「用网址生成」蒙层收起、添加来源页弹出 → 再冷启动不再出现；演示模式 `-BrowseCraftShowOnboarding` 重放时第 1 步落在 List 里的「正在使用」卡（目标矩形能传上来）、第 3 步落在右上「目录 / 添加」胶囊、点「目录」出目录 sheet；切到库出库页一步并落在第一张海报，「知道了」关闭；设置页「关于」组「新手引导」行切到来源页重放；深色下欢迎卡与第 3 步正常。走查中修一处：安全区在忽略安全区的 reader 里读成 0，「跳过」压到状态栏、底栏挖空盖不住悬浮底栏，改为外层 reader 读安全区。未走到：漫画库与书籍库的第一张封面目标、减弱动态效果、真机 | `BCA-UI-009` | required | approved | implemented | simulator-passed | 190c6e8e | 2026-10-22 |

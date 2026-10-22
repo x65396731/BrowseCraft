@@ -15,6 +15,9 @@ struct SourcesView: View {
     let openPremium: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
+    /// 中文注释：新手引导第 3 步的出口是用户点真实入口（`docs/design/Onboarding-Design.md` 第五节）：
+    /// 入口卡与右上胶囊被点时告知一声，其余逻辑不动；根视图没挂时为 nil。
+    @Environment(OnboardingTourStore.self) private var onboardingTour: OnboardingTourStore?
     @State private var isShowingAddSourceView: Bool = false
     @State private var isShowingCatalogSourceListView: Bool = false
     @State private var opensAddSourceAfterCatalog: Bool = false
@@ -186,6 +189,8 @@ struct SourcesView: View {
 
             if let currentSource: Source = currentSource {
                 SourceInUseCardView(source: currentSource, action: self.openLibrary)
+                    // 中文注释：新手引导回看时第 1 步的备选目标。
+                    .spotlightTarget(.sourcesInUseCard)
                     .disabled(isSwitching)
                     .opacity(isSwitching ? 0.45 : 1)
                     .contextMenu {
@@ -293,12 +298,16 @@ struct SourcesView: View {
             Spacer(minLength: 0)
             SourcesActionCapsule(
                 catalogAction: {
+                    self.onboardingTour?.noteSourcesEntryTapped(.catalog)
                     self.isShowingCatalogSourceListView = true
                 },
                 addAction: {
+                    self.onboardingTour?.noteSourcesEntryTapped(.generate)
                     self.isShowingAddSourceView = true
                 }
             )
+            // 中文注释：新手引导回看时第 3 步的备选目标。
+            .spotlightTarget(.sourcesActionCapsule)
         }
     }
 
@@ -451,6 +460,8 @@ struct SourcesView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 12)
+                // 中文注释：新手引导第 1 步的聚光目标（Onboarding-Design.md 第四节）。
+                .spotlightTarget(.sourcesEmptyState)
                 .padding(.top, 26)
 
                 VStack(spacing: 12) {
@@ -461,6 +472,7 @@ struct SourcesView: View {
                         iconForeground: CatalogPalette.onAction,
                         iconBackground: CatalogPalette.addAction,
                         action: {
+                            self.onboardingTour?.noteSourcesEntryTapped(.catalog)
                             self.isShowingCatalogSourceListView = true
                         }
                     )
@@ -471,10 +483,13 @@ struct SourcesView: View {
                         iconForeground: CatalogPalette.onPrimary,
                         iconBackground: .primary,
                         action: {
+                            self.onboardingTour?.noteSourcesEntryTapped(.generate)
                             self.isShowingAddSourceView = true
                         }
                     )
                 }
+                // 中文注释：新手引导第 3 步的聚光目标：一个挖空包住两张卡。
+                .spotlightTarget(.sourcesEntryCards)
                 .padding(.top, 24)
                 .padding(.bottom, 24)
             }

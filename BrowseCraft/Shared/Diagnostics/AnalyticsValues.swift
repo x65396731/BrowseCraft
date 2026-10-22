@@ -224,6 +224,24 @@ enum CatalogUpdateTrigger: String, Sendable {
     case foreground
 }
 
+/// 中文注释：`onboarding_finished` 的 `entry`：首装自动出现，或从设置页「关于」组回看。
+enum OnboardingEntry: String, Sendable {
+    case firstRun = "first_run"
+    case help
+}
+
+/// 中文注释：`onboarding_finished` 的 `result`：来源页部分从哪个出口结束（点了哪张入口卡、在哪一步跳过），
+/// 或库页那一步看完。
+enum OnboardingResult: String, Sendable {
+    case catalog
+    case generate
+    case libraryDone = "library_done"
+    case skippedWelcome = "skipped_welcome"
+    case skipped1 = "skipped_1"
+    case skipped2 = "skipped_2"
+    case skipped3 = "skipped_3"
+}
+
 // MARK: - C. 规则生成
 
 /// 中文注释：`generation_guide_finished` 的 `entry`。

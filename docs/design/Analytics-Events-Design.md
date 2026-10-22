@@ -79,6 +79,7 @@ Crashlytics 的写入点只有 `CrashDiagnostics`，规则执行失败的上报�
 | `app_foregrounded` | 从后台回到前台（scenePhase 变为 active）时报；冷启动那次不报。 | 无。 |
 | `app_bootstrap_failed` | 启动装配失败、进入启动失败页时报。 | error_code（装配失败在哪一步）。不报：诊断码与错误文案。 |
 | `startup_finished` | 开屏动画结束、退到标签页时报，记录为什么结束。 | result（StartupOutcome）、entry（落到哪个标签页）。 |
+| `onboarding_finished` | 新手引导（[Onboarding-Design.md](Onboarding-Design.md)）来源页部分结束时报一次（跳过、或第 3 步点了入口卡），库页那一步结束再报一次；没出现过不报。 | entry（OnboardingEntry：first_run 首装、help 设置页回看）、result（OnboardingResult：catalog / generate / library_done / skipped_welcome / skipped_1 / skipped_2 / skipped_3）。 |
 | `screen_view` | 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。 | screen_name、screen_class（都取 DiagnosticScreen 的原始值）。 |
 | `push_opened` | 用户点开推送时报，规则生成结果推送与活动推送都算；推送在前台到达不报。 | entry（PushOpenEntry：rule_generation 生成结果、campaign 活动推送，[Campaign-And-Rate-Notices-Design.md](Campaign-And-Rate-Notices-Design.md) 第六节）。不报：推送内容、任务 ID 与活动标识。 |
 | `support_info_copied` | 用户复制诊断码、账号 ID、启动失败信息或导出诊断日志（导出入口只在 Debug 构建存在）时报，用来估计求助量。 | entry（SupportInfoKind）。不报：复制或导出的内容本身。 |

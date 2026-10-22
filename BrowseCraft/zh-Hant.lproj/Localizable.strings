@@ -1153,3 +1153,21 @@
 "temporary_detail_source_page" = "來源頁面";
 "video_preflight_submit_failed_local" = "提交沒有完成，請檢查網路後再試。";
 "video_preflight_submit_failed_recheck" = "提交沒有完成，請重新檢查網址後再提交。";
+
+/* 新手引導（docs/design/Onboarding-Design.md）：歡迎卡、來源頁三步、庫頁一步、設定頁回看 */
+"onboarding_welcome_title" = "把常看的網站裝進來";
+"onboarding_welcome_message" = "AnyPortal 自己不放內容。你新增一個網站，它的影片、漫畫或書就整理進庫裡。先帶你看一圈，再加第一個網站。";
+"onboarding_start" = "開始";
+"onboarding_skip" = "略過";
+"onboarding_next" = "下一步";
+"onboarding_done" = "知道了";
+"onboarding_step_counter" = "%1$d / %2$d";
+"onboarding_step_sources_empty" = "來源就是一個網站。新增一個，它的內容就按影片、漫畫、書籍整理成庫。網站是你自己選的。";
+"onboarding_step_sources_in_use" = "正在使用的網站在這裡，點卡片打開它的庫。來源就是一個網站，內容按影片、漫畫、書籍整理成庫。";
+"onboarding_step_tabs" = "常用的是這三個：來源管網站，庫看目前網站的內容，歷史接著上次看。登入、coin 和 iCloud 同步在設定裡。";
+"onboarding_step_entry_cards" = "兩條路加第一個網站：目錄裡挑現成的，或貼網址生成（要登入，新帳號有贈送的 coin）。";
+"onboarding_step_entry_capsule" = "再加一個網站從這裡：目錄裡挑現成的，或貼網址生成（要登入，新帳號有贈送的 coin）。";
+"onboarding_step_entry_hint" = "點亮著的卡片繼續";
+"onboarding_step_entry_capsule_hint" = "點亮著的按鈕繼續";
+"onboarding_library_hint" = "第一個網站進來了。點封面打開作品，右上角的愛心收藏；看過的會出現在歷史裡，點一下接著看。";
+"settings_onboarding_row" = "新手引導";

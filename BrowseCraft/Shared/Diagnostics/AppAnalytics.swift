@@ -27,6 +27,10 @@ final class AppAnalytics: Sendable {
         /// 开屏动画结束、退到标签页时报，记录为什么结束。
         /// 参数：result（StartupOutcome）、entry（落到哪个标签页）。
         case startupFinished = "startup_finished"
+        /// 新手引导（`docs/design/Onboarding-Design.md`）结束时报：来源页部分（跳过、或第 3 步点了入口卡）一次，
+        /// 库页那一步结束再一次；没出现过不报。
+        /// 参数：entry（OnboardingEntry）、result（OnboardingResult）。
+        case onboardingFinished = "onboarding_finished"
         /// 任一页面显示时报，含从下级页返回、盖在上面的 sheet / 全屏页关闭后重新露出；由 `.analyticsScreen(_:)` 统一发出。
         /// 参数：screen_name、screen_class（都取 DiagnosticScreen 的原始值）。
         case screenView = "screen_view"

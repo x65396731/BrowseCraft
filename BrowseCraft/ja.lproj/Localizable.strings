@@ -1153,3 +1153,21 @@
 "temporary_detail_source_page" = "ソースページ";
 "video_preflight_submit_failed_local" = "送信が完了しませんでした。ネットワークを確認してからやり直してください。";
 "video_preflight_submit_failed_recheck" = "送信が完了しませんでした。URLをもう一度確認してから送信してください。";
+
+/* はじめてガイド（docs/design/Onboarding-Design.md）：ウェルカムカード、ソース画面の3ステップ、ライブラリ画面の1ステップ、設定からの再表示 */
+"onboarding_welcome_title" = "よく見るサイトを取り込もう";
+"onboarding_welcome_message" = "AnyPortal自体にはコンテンツがありません。サイトを追加すると、その動画・マンガ・本がライブラリに整理されます。まずはひと通り案内してから、最初のサイトを追加しましょう。";
+"onboarding_start" = "はじめる";
+"onboarding_skip" = "スキップ";
+"onboarding_next" = "次へ";
+"onboarding_done" = "わかった";
+"onboarding_step_counter" = "%1$d / %2$d";
+"onboarding_step_sources_empty" = "ソースとはウェブサイトのことです。追加すると、そのコンテンツが動画・マンガ・本ごとにライブラリとして整理されます。サイトは自分で選びます。";
+"onboarding_step_sources_in_use" = "使用中のサイトはここです。カードをタップするとそのライブラリが開きます。ソースとはウェブサイトのことで、コンテンツは動画・マンガ・本ごとに整理されます。";
+"onboarding_step_tabs" = "よく使うのはこの3つ：ソースでサイトを管理、ライブラリで今のサイトのコンテンツを見る、履歴で続きから見る。ログイン、coin、iCloud同期は設定にあります。";
+"onboarding_step_entry_cards" = "最初のサイトを追加する方法は2つ：カタログから選ぶか、URLを貼り付けて生成する（ログインが必要、新規アカウントにはcoinをプレゼント）。";
+"onboarding_step_entry_capsule" = "サイトの追加はここから：カタログから選ぶか、URLを貼り付けて生成する（ログインが必要、新規アカウントにはcoinをプレゼント）。";
+"onboarding_step_entry_hint" = "明るいカードをタップして続ける";
+"onboarding_step_entry_capsule_hint" = "明るいボタンをタップして続ける";
+"onboarding_library_hint" = "最初のサイトが入りました。表紙をタップして作品を開き、右上のハートでお気に入りに。見たものは履歴に残り、タップで続きから見られます。";
+"settings_onboarding_row" = "はじめてガイド";

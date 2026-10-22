@@ -149,6 +149,13 @@ extension AppAnalytics {
         ])
     }
 
+    func logOnboardingFinished(entry: OnboardingEntry, result: OnboardingResult) {
+        self.log(.onboardingFinished, parameters: [
+            Parameter.entry: entry.rawValue,
+            Parameter.result: result.rawValue
+        ])
+    }
+
     func logGenerationGuideFinished(entry: GenerationGuideEntry, result: GenerationGuideResult) {
         self.log(.generationGuideFinished, parameters: [
             Parameter.entry: entry.rawValue,
