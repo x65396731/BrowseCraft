@@ -2171,3 +2171,18 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - CloudKit 控制台 Development 有 `AppUserIdentity` / `FavoriteItem` / `HistoryEntry` / `Source` / `Users` 五个类型；「Deploy Schema Changes」的确认框列 Record Types (0)、Indexes (0)、Security Roles (0)，Production 已与 Development 一致（10-04 部署、10-04 加 `itemID` 后再部署），点 Cancel，未部署。
 - Firebase In-App Messaging：「新账户欢迎页」投放中（10-18 起，10-22 更新），「限时活动 · 送 300 coin」仍是无开始日期的草稿。它的前置是活动入账脚本（未写）与用户发活动的指令，本次只看状态、未改。
 - STATUS 第 13 节 #12 拆出一行记这两件核对（static-audit-passed），其余五件留原行；HANDOFF 审计行 ③ 同步。
+
+## 2026-10-23 服务器侧欠项的评估与本地可核的三项（用户「服务器（PortalCore）的部分现在能做吗？需要我判断的给出建议」）
+
+- 服务器只读查询没有再上机：10-20 那次只读查库被权限策略拦下、用户定了由自己跑；当时写的 `catalog_versions_ro.py` 未留存。本次重写两份只读脚本放在 fwq `site-research/server-queries/`：`catalog_versions_ro.py`（公共目录规则 `version` 按分区 × 类型计数、列出 version 1 的条目 id）、`ssv_reward_delay_ro.py`（`coin_ledger.reward_delay_ms` 的条数、起止日期、p50 / p90 / p95 / p99 / max 与超过 12 / 30 / 60 / 120 秒的占比，列不存在时提示 v0020 未部署）。都以 `mode=ro` 打开、只做 SELECT、不打印规则正文、网址与用户标识；用本机造的小库跑过输出正确。两份未提交到 fwq（fwq 工作区另有别的会话的未跟踪文件，没动）。
+- GMA 12.14.0（SPM 包内 `GoogleMobileAds.framework/PrivacyInfo.xcprivacy`）：没有 `NSPrivacyTracking` 与跟踪域名；七类收集数据里只有「设备 ID」标为用于跟踪（三方广告 / 自家广告 / 分析），其余六类不跟踪。App 自己的清单 `NSPrivacyTracking` false、跟踪域名空、设备 ID 标跟踪，与之一致；ASC 隐私标签里「设备 ID — 用于跟踪」要勾上。
+- 日志网址脱敏：`LogValue.path` 在 `AppLog.isDebugBuild` 为假时写成「主机名#路径哈希前 8 位」，判断用的是 BrowseCraftLog 包内的 `#if DEBUG`。导出诊断日志的入口本身是 App 的 `#if DEBUG`，TestFlight 包里不出现，所以「TestFlight 包导出日志看 path」这条按原写法做不到；TestFlight 配置下 SPM 包是否定义 `DEBUG` 由 Xcode 决定，本机未 build TestFlight 配置验证。
+- ATS 例外 `content.mkzcdn.com`：fwq 语料里这家图床的图实际在 `oss.mkzcdn.com`，http 与 https 都有、同图 https 可取（站点本就支持），例外放行的却是 `content.` 子域，对 `oss.` 不起作用。
+
+## 2026-10-23 删除 ATS 例外 `content.mkzcdn.com`（用户裁定）
+
+- 依据见上一节：fwq 语料里 mkzcdn 的图都在 `oss.mkzcdn.com`，例外放行的是 `content.mkzcdn.com`，对现有规则从未生效；同图 https 可取，App 也没有全局 ATS 例外的先例（http 跳转在直接请求通道升级成 https、有声书 mp3 同样升级，见 RuleExecutionSemantics 与 Book-Kind-Wiring 合同）。
+- 改动：`BrowseCraft/Info.plist` 删去整段 `NSAppTransportSecurity`（字典里只有这一条），`plutil -lint` 通过；按会话纪律未 build、未跑测试。C 类文档没有点名这条例外，合同不用改。
+- STATUS 第 13 节被覆盖的旧值（`BCA-DOC-006`）：「清单 #12 其余」一行原文为
+  | 清单 #12 其余（控制台侧，用户自己做）：ASC 取消「在 Apple 芯片 Mac 上提供」（用户裁定）；核 GMA 12.14.0 自带隐私清单的跟踪声明；8 个 `InAppPurchasePlan` 对 ASC 5 个内购；TestFlight 包导出日志看 path 是否 `host#xxxxxxxx`；ATS 例外 `content.mkzcdn.com`——2026-10-20 本机 `curl -I https://content.mkzcdn.com/` 得 403（TLS 通、防盗链拒绝），规则里的图片地址是否已是 https 未核，例外暂留 | 未编号 | required | approved | not-started | not-run | e564973b | 2026-10-20 |
+  新值：工作项去掉末尾「；ATS 例外 `content.mkzcdn.com`——…例外暂留」一段，其余各格不变；ATS 例外另起一行 implemented / static-audit-passed。
