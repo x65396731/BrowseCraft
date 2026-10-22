@@ -25,6 +25,7 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
         entryURL: String,
         refresh: Bool,
         acquisitionTier: GenerationAcquisitionTier,
+        idempotencyKey: String?,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation {
         let acceptLanguage: String? = self.acceptLanguage()
@@ -34,7 +35,9 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
             "sourceKind": .code("\(sourceKind.rawValue)"),
             "refresh": .bool(refresh),
             "acceptLanguage": .code("\(acceptLanguage ?? "-")"),
-            "tier": .code("\(acquisitionTier.rawValue)")
+            "tier": .code("\(acquisitionTier.rawValue)"),
+            // 中文注释：键本身是随机串，只记有没有带。
+            "idempotencyKey": .bool(idempotencyKey != nil)
         ])
         do {
             let submit: PortalRuleGenerationSubmitResponse = try await self.api.submit(
@@ -43,6 +46,7 @@ struct APIKitVideoGenerationTaskClient: VideoGenerationTaskCreating {
                 refresh: refresh,
                 acceptLanguage: acceptLanguage,
                 acquisitionTier: acquisitionTier.requestValue,
+                idempotencyKey: idempotencyKey,
                 accessToken: accessToken
             )
             switch submit {

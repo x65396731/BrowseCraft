@@ -25,12 +25,15 @@ enum VideoGenerationTaskClientError: Error, Hashable, Sendable {
 /// **单向的**——同一入口的规则在服务端复用窗口（30 天）内怎么提都直返旧规则，
 /// 站点改版、规则生成错了、或引擎修好了都没有办法让它重来。
 /// `acquisitionTier`（`BC-ACQ-071`）：用户选的取页档位，随请求发给服务端；普通档不发字段。
+/// `idempotencyKey`：取用现成规则的幂等键（`docs/design/Generation-Input-Page-Redesign-Design.md` 第六节），
+/// 进请求头 `Idempotency-Key`；`nil` 不带，行为与引入之前相同。
 protocol VideoGenerationTaskCreating: Sendable {
     func createVideoTask(
         sourceKind: RuleGenerationSourceKind,
         entryURL: String,
         refresh: Bool,
         acquisitionTier: GenerationAcquisitionTier,
+        idempotencyKey: String?,
         accessToken: String
     ) async throws -> VideoGenerationTaskCreation
 }

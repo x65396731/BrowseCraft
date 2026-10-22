@@ -470,7 +470,8 @@ final class SourcesViewModel {
         preflight: VideoGenerationInputPreflight,
         sourceKind: RuleGenerationSourceKind,
         refresh: Bool = false,
-        acquisitionTier: GenerationAcquisitionTier = .normal
+        acquisitionTier: GenerationAcquisitionTier = .normal,
+        idempotencyKey: String? = nil
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         let analyticsKind: AnalyticsContentKind = AnalyticsContentKind(ruleGenerationKind: sourceKind)
         let hardMode: Bool = acquisitionTier == .hard
@@ -487,7 +488,8 @@ final class SourcesViewModel {
                 preflight: preflight,
                 sourceKind: sourceKind,
                 refresh: refresh,
-                acquisitionTier: acquisitionTier
+                acquisitionTier: acquisitionTier,
+                idempotencyKey: idempotencyKey
             )
         } catch {
             // 中文注释：本地拒绝（预检未通过、版本漂移）或异常，没到服务端；输入页把它显示成 `local-rejection`。

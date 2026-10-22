@@ -63,11 +63,13 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
     /// 中文注释：预检本身是中性的（只看列表族数量、发布组、截断与反爬登录，无任何视频
     /// 语义词），因此两种 kind 共用同一份 accepted 结果；`sourceKind` 只决定提交给
     /// 服务端的生成链，不参与预检判定。
+    /// `idempotencyKey`：取用现成规则的幂等键，原样交给任务客户端；`nil` 不带（Generation-Input-Page-Redesign-Design.md 第六节）。
     func execute(
         preflight: VideoGenerationInputPreflight,
         sourceKind: RuleGenerationSourceKind,
         refresh: Bool = false,
-        acquisitionTier: GenerationAcquisitionTier = .normal
+        acquisitionTier: GenerationAcquisitionTier = .normal,
+        idempotencyKey: String? = nil
     ) async throws -> VideoGenerationTaskSubmissionOutcome {
         guard preflight.canSubmit else {
             throw VideoGenerationTaskSubmissionRejection.preflightNotAccepted(preflight.status)
@@ -89,6 +91,7 @@ struct CreateVideoGenerationTaskUseCase: Sendable {
                 entryURL: preflight.submissionString,
                 refresh: refresh,
                 acquisitionTier: acquisitionTier,
+                idempotencyKey: idempotencyKey,
                 accessToken: accessToken
             )
             switch creation {

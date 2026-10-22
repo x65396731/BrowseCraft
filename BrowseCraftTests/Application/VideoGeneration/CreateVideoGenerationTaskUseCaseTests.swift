@@ -12,6 +12,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             let entryURL: String
             let refresh: Bool
             var acquisitionTier: GenerationAcquisitionTier = .normal
+            var idempotencyKey: String? = nil
             let accessToken: String
         }
 
@@ -43,6 +44,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             entryURL: String,
             refresh: Bool,
             acquisitionTier: GenerationAcquisitionTier,
+            idempotencyKey: String?,
             accessToken: String
         ) async throws -> VideoGenerationTaskCreation {
             self.calls.append(
@@ -51,6 +53,7 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
                     entryURL: entryURL,
                     refresh: refresh,
                     acquisitionTier: acquisitionTier,
+                    idempotencyKey: idempotencyKey,
                     accessToken: accessToken
                 )
             )
@@ -169,6 +172,25 @@ final class CreateVideoGenerationTaskUseCaseTests: XCTestCase {
             calls,
             [.init(sourceKind: .video, entryURL: Self.watchURL, refresh: false, accessToken: "access-1")]
         )
+    }
+
+    /// 取用的幂等键原样到达客户端，缺省不带（Generation-Input-Page-Redesign-Design.md 第六节）。
+    func testIdempotencyKeyReachesTheTaskClientUnchanged() async throws {
+        let client = RecordingTaskClient(result: .success(UUID()))
+        let useCase = CreateVideoGenerationTaskUseCase(
+            taskClient: client,
+            accessTokenProvider: StaticTokenProvider(token: "access-1")
+        )
+
+        _ = try await useCase.execute(
+            preflight: self.preflight(status: .accepted),
+            sourceKind: .video,
+            idempotencyKey: "3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90"
+        )
+        _ = try await useCase.execute(preflight: self.preflight(status: .accepted), sourceKind: .video)
+
+        let calls = await client.recordedCalls()
+        XCTAssertEqual(calls.map(\.idempotencyKey), ["3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90", nil])
     }
 
     /// `sourceKind` 必须原样到达客户端：预检是中性的，选哪条生成链只由这个参数决定。

@@ -34,6 +34,10 @@ struct VideoGenerationInputView: View {
     /// 都按「没有现成规则」显示。改网址、重新检查即清掉。
     @State private var reusePreview: GenerationReusePreview?
     @State private var reusePreviewTask: Task<Void, Never>?
+    /// 中文注释：取用现成规则的幂等键（合同第六节）：每次滑动提交生成一个，提交失败后再滑沿用同一个，
+    /// 换网址、重新检查或提交得到结果后作废；重新生成（`refresh`）不带。服务端只在取用路径看它，
+    /// 所以普通生成也带上没有副作用，预览没查到、服务端却取用了的那次照样受保护。
+    @State private var submissionIdempotencyKey: String?
     @State private var isShowingRegenerateSheet: Bool = false
     /// 中文注释：取用之后「添加为来源」的进行中与失败（失败只在按钮下说明，不弹窗）。
     @State private var isAddingReusedRule: Bool = false
@@ -846,6 +850,8 @@ struct VideoGenerationInputView: View {
         self.reusePreviewTask?.cancel()
         self.reusePreviewTask = nil
         self.reusePreview = nil
+        // 中文注释：预览重来意味着网址或结论变了，幂等键跟着作废。
+        self.submissionIdempotencyKey = nil
     }
 
     /// 中文注释：重新生成面板的余额说明：重新生成跳过复用，不提「现成规则只扣多少」那半句。
@@ -929,6 +935,7 @@ struct VideoGenerationInputView: View {
         }
         self.submissionTask?.cancel()
         self.submissionState = .submitting
+        let idempotencyKey: String? = refresh ? nil : self.submissionIdempotencyKey(for: preflight)
         self.submissionTask = Task { @MainActor in
             do {
                 let outcome: VideoGenerationTaskSubmissionOutcome = try await self.viewModel
@@ -936,10 +943,17 @@ struct VideoGenerationInputView: View {
                         preflight: preflight,
                         sourceKind: self.sourceKind,
                         refresh: refresh,
-                        acquisitionTier: self.acquisitionTier
+                        acquisitionTier: self.acquisitionTier,
+                        idempotencyKey: idempotencyKey
                     )
                 guard Task.isCancelled == false else {
                     return
+                }
+                // 中文注释：提交失败（传输失败、服务端错误）时保留键，用户再滑一次沿用它，服务端 24 小时内只扣一次；
+                // 其余结局都是这把键的终点。
+                if case .failed = outcome {
+                } else {
+                    self.submissionIdempotencyKey = nil
                 }
                 // 中文注释：服务端复用的规则（`.reused`）不自动添加成来源——自动添加会顺带选中它并跳到库
                 // （2026-10-03 用户裁定不要）；2026-10-19 起由用户在这一屏点「添加为来源」手动添加。
@@ -958,6 +972,16 @@ struct VideoGenerationInputView: View {
             }
             self.submissionTask = nil
         }
+    }
+
+    /// 中文注释：同一份预检结果上的多次滑动（首次、失败后再试）共用一把键；预检结果换了就换新键。
+    private func submissionIdempotencyKey(for preflight: VideoGenerationInputPreflight) -> String {
+        if let key: String = self.submissionIdempotencyKey {
+            return key
+        }
+        let key: String = UUID().uuidString.lowercased()
+        self.submissionIdempotencyKey = key
+        return key
     }
 
     private func cancelSubmission() {

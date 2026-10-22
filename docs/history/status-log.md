@@ -2140,3 +2140,15 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 提交：整笔合为 `e191d1b0`（用户要求提交）；STATUS 第 15 节三行的检查点由动手时的 HEAD `190c6e8e` 改为 `e191d1b0`。
 - 补走（同日，用户要求）：演示模式强制重放后跳过来源页部分，切到示例漫画站与示例书站，库页那一步分别落在第一张封面卡（含标题与最新话）与第一行书脊（含分隔线）；`-AppleLanguages (ja) -AppleLocale ja_JP` 下欢迎卡正文五行、第 1 步四行、第 2 步四行、第 3 步三行，都在气泡内、没有换到目标另一侧；减弱动态效果用 `simctl spawn defaults write com.apple.Accessibility ReduceMotionEnabled` 开关、`simctl io recordVideo` 录第 2 步到第 3 步再按 30fps 抽帧：打开时相邻两帧直接切换，关掉时约 6 帧过渡（挖空与气泡一起动）。走查后把 ReduceMotionEnabled 改回 false。观感项未改：「跳过」胶囊压在标题行右侧的计数 / 胶囊 / 「…」按钮上（都是压暗内容）。
 - 测试与观感项（同日，用户要求「先做 1 和 2」）：`OnboardingGuideTests` 7 项通过；全量 `xcodebuild test`（iPhone 18 Pro / iOS 27.0）通过——Swift Testing 683 项 / 117 suites、XCTest 86 项，0 失败；STATUS 实施行 not-run → full-suite-passed。观感项两处：「跳过」从蒙层右上移进气泡步号行右侧（`SpotlightTourOverlay` 删掉浮层按钮，步号行改成「1 / 3 … 跳过」），挖空加一圈 1pt `onDarkFill` 描边；合同第三、八、十一节、画布四张画板与取值板、设计索引组件行同步；模拟器看过浅色第 1 步与深色第 3 步。检查点写的是动手时的 HEAD（`2b7f58af`）。
+
+## 2026-10-22 取用公共规则沿用同一 Idempotency-Key（App 侧）
+
+- 用户裁定做 HANDOFF 挂账里的这一条（10-21 审计首发后项②）。改动：APIKit `PortalRuleGenerationAPI.submit` 加 `idempotencyKey` 参数，非空时进请求头 `Idempotency-Key`（缺省不带头，既有调用方行为不变）；App 端口 `VideoGenerationTaskCreating.createVideoTask` 加同名参数，`APIKitVideoGenerationTaskClient` 透传并只记「有没有带」；`CreateVideoGenerationTaskUseCase.execute` 与 `SourcesViewModel.submitVideoGenerationTask` 加缺省 nil 的参数；`VideoGenerationInputView` 持一把键：每次滑动提交（取用或生成）生成 UUID，提交结局为失败时保留、再滑沿用，其余结局与预览重来（换网址、重新检查）时作废，重新生成（refresh）不带。决定「普通生成也带」而不是只在预览说可取用时带：服务端只在取用路径读这个键，带上没有副作用，预览没查到而服务端取用的那次同样受保护。
+- 验证：APIKit `swift test --filter PortalRuleGenerationAPITests` 11 项通过（新加 `submitCarriesIdempotencyKeyHeaderOnlyWhenGiven`）；App `CreateVideoGenerationTaskUseCaseTests` 新加 `testIdempotencyKeyReachesTheTaskClientUnchanged`；`xcodebuild test -only-testing:BrowseCraftTests/CreateVideoGenerationTaskUseCaseTests` 12 项通过。真实取用要登录账号与会扣 coin，没在模拟器走。APIKit 是独立仓，那一笔要单独提交。
+
+## 2026-10-23 发布前审计行②的失败态模拟器走查（用户裁定做）
+
+- 四处里两处用临时注入走到（Debug 演示模式，注入按启动参数生效、测完撤掉未提交）：#5 站点书打开失败——`DemoSourceRuntime.loadBookContent` 抛 `SourceRuntimeError.emptyContent`，阅读器先转圈几秒再换成一页说明「这一章在网页上没有正文。站点可能只在自家 App 内提供这部作品的内容。」，目录与书签入口照常；#6 本地拒绝——`CreateVideoGenerationTaskUseCase.execute` 抛 `preflightPolicyDrift`，输入页出警示卡「提交没有成功 / 提交没有完成，请重新检查网址后再提交。」与「滑动再试一次 · 100 coin」。STATUS 第 13 节两行 not-run → simulator-passed。
+- #10 书详情重取失败横幅已在 10-21 真机走查那行撤回（书详情没有下拉刷新，横幅出不来），没有可走的失败态。#2 Release 配置长按来源见下一节。
+- #2 Release 配置（`xcodebuild -configuration Release` 模拟器包，卸载重装、不带演示模式）：开屏「跳过」后新手引导欢迎卡照出（跳过）；「发现」示例区线上 3 条（漢典古籍、NOIRLab、Loyal Books），加 NOIRLab 时行内「正在验证这个网站… / 取消」约 30 秒后加成并切到库；来源页长按「正在使用」卡的菜单只有「打开库」「删除来源」，没有「来源详情」。观察项：NOIRLab 卡片出身写「我的生成」而不是「来自目录」——该示例由本账号生成的规则转来，按目录合同 2.2「不按本人生成 id 剔除」属预期。STATUS 第 13 节 #2 行 not-run → simulator-passed。
+- 顺带看到：网址输入页「取页方式」卡里的成功率一行有数据时的次数文案「全部地区 · 近 30 天普通模式生成 1 次，成功 1 次」在模拟器出现（活动行此前记为真机没看）；百分比文案要样本满 20 条，仍未见。模拟器剪贴板 `simctl pbcopy` 仍不同步到 App 的粘贴按钮，网址用软键盘打进去。

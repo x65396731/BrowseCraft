@@ -71,7 +71,9 @@
 
 - `GET /v1/rule-generations/reuse-preview?entryURL=…&sourceKind=…&acceptLanguage=…`：要登录；与提交走同一个复用判定，只回 `{"reusable": true|false, "coinCost": N}`，不下发规则、不扣费、不排队；本人 7 天内的为 `coinCost` 0，公共规则为取用价，别人 7 天内生成的与没有规则的都是 `reusable` false。只透露「有没有、多少钱」，规则本身仍只能经提交取用并扣费（PortalCore 发布前检查清单第 9 项）。
 - 取用的幂等键（App 侧落点，实施状态见 [STATUS.md](../STATUS.md) 第 2 节）：服务端收 `Idempotency-Key` 请求头（`[A-Za-z0-9._:-]{1,128}`），同用户、同网址、同键 24 小时内重发只扣一次并返回同样的 `coinCharged`。
-  App 每次「滑动取用」生成一个 UUID 键，超时重发沿用同一键；不带键的行为不变（再扣一次）。
+  App 侧：输入页每次滑动提交（取用或生成，重新生成除外）生成一个 UUID 键，同一份预检结果上提交失败后再滑沿用同一键，换网址、重新检查或得到非失败结局后作废；
+  键经 `CreateVideoGenerationTaskUseCase` 与 `VideoGenerationTaskCreating` 原样交给 APIKit 进请求头。服务端只在取用路径看它，所以普通生成也带上没有副作用，
+  预览没查到、服务端却取用了的那次同样受保护；不带键的行为不变（再扣一次）。
 
 ## 七、真机验收清单
 
