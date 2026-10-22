@@ -2095,3 +2095,8 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - App 侧四笔，按设计书第 7 节顺序：`53de1aed`（ja.lproj 两文件全量 + 闸门加 ja + 工程重生成 + `BCA-BUILD-009` 取号，一次提交——闸门要求键集合一致，拆开会让中间版本构建失败）、`999a1e46`（演示模式）、`3623e573`（11 处注释与 22 份 C 类文档的「三份 / 三语」改「各语言」，Q4）、`04e58ecf`（Q3 错误提示第二行只在 Debug 拼；Q5 地区名按界面语言取）。按 AGENTS 未 build、未跑测试；本地化闸门拿 10-13 的旧 Objects-normal 离线跑，四语键集合一致通过，10 条报错全是旧 stringsdata 里已被 10-20 审计（STATUS 第 13 节 #4）改名的键；两个改动的 Swift 文件 `swiftc -parse` 通过。
 - 仓外：PortalCore `66538f7` 给隐私政策加 article#ja、支持页加日语段（未部署，法律文本待译者复核）；产品页与内购的日语草稿写进 `docs/release/app-store-listing-ja.md`（随带日语的下一个版本填，Q8）。Firebase In-App Messaging 在 Chrome（用户已登录）里做：两条活动的本地化对话框各加「日语 (ja)」并填标题 / 正文 / 按钮——「限时活动 · 送 300 coin」已另存为草稿；「新账户欢迎页」是投放中的活动，译文已填到审核对话框，最后一步「发布」被本机自动模式的分类器拒绝（线上活动写入），留给用户在 Chrome 那个标签页里点。
 - 顺手发现、未处理：Campaign-And-Rate-Notices 第五节的锁屏活动推送由服务端脚本带各语言文案，脚本尚未写（HANDOFF 活动行），写时要带 ja；Features 层 16 处直接显示 `error.localizedDescription` 的地方不在 Q3 的 A 范围内，未动。文档闸门除本来就有的 `BC-DOC-061`（本机 fwq checkout 落后于远端，HANDOFF 首行挂账）外全过。
+
+## 2026-10-22 anyportal.online 两页重设计（PortalCore）
+
+- 设计稿 Claude 文档「AnyPortal 网站页面重设计稿」（https://claude.ai/artifact/5rZ8UPEzDJm9zqhAgqi4RC）：现状、目标、隐私政策页与支持页线框、共用零件表、实现清单；用户同日裁定 Q1–Q5 全取 A（默认语言无匹配落英文、切换改 `?lang=`、顶栏纯文字站名、不加落地页、问答默认只展开第一条）。
+- PortalCore `328c366`：两页换同一个壳，一次只显示一种语言，隐私政策加目录，支持页联系卡与折叠问答；三语正文逐字不动（生成脚本按旧文件切段回填并核对一致）。内置浏览器看过 375 / 800 / 1200 三档与深色。测试补两条断言，本机缺 httpx 未跑；未推送、未部署。
