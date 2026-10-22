@@ -2101,3 +2101,7 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 设计稿 Claude 文档「AnyPortal 网站页面重设计稿」（https://claude.ai/artifact/5rZ8UPEzDJm9zqhAgqi4RC）：现状、目标、隐私政策页与支持页线框、共用零件表、实现清单；用户同日裁定 Q1–Q5 全取 A（默认语言无匹配落英文、切换改 `?lang=`、顶栏纯文字站名、不加落地页、问答默认只展开第一条）。
 - PortalCore `328c366`：两页换同一个壳，一次只显示一种语言，隐私政策加目录，支持页联系卡与折叠问答；三语正文逐字不动（生成脚本按旧文件切段回填并核对一致）。内置浏览器看过 375 / 800 / 1200 三档与深色。测试补两条断言，本机缺 httpx 未跑；未推送、未部署。
 - 部署（用户 2026-10-22 裁定）：`gh workflow run deploy -f ref=328c366`，运行 39733602795 成功；线上 `/privacy` `/support` 已是新壳并含 `article#ja`，`/health/ready` 200。HANDOFF 日语本地化行去掉「PortalCore 部署」欠项。
+
+## 2026-10-22 本机 checkout 与远端对齐（用户「检查分支……解决冲突」）
+
+- 收尾三笔云端重做的本机一侧收口：BrowseCraft 本机 `e8c1e7d7` / `9adab207` 与远端 `d87b6a95` / `c699b39e`、fwq 本机 `d2e2c8af` 与远端 `1ae6b305` 逐笔 `git diff` 树为空，`origin/main..main` 只有这三笔；没用 `git reset --hard`，改用 `git rebase origin/main`，git 按「已应用」跳过这三笔，两仓 main 落在 origin/main。PortalCore 落后 2 笔（`66538f7`、`328c366`）快进；Core / Domain / Runtime / APIKit / Log 本来就对齐，七仓都只有 main、工作区干净。HANDOFF 第 1 节「本机（Mac）checkout 与远端对齐」一行删除。
