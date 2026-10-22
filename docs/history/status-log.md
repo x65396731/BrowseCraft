@@ -2088,3 +2088,10 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 本机未推的三笔：BrowseCraft `e8c1e7d7`（`.text` 闸门）、`9adab207`（`APP-MEMO-035` 改指）、fwq `d2e2c8af`（`app-memos.md`）。做它们的桥接会话 10-22 00:49 与另三个桥接会话同一秒被归档（证据指向本机 Claude Code 自动更新重启：10-21→10-22 版本 2.1.299→2.1.304），本机不可达。
 - 云端从归档会话的记录里取出当时写文件的原始脚本逐字重放：fwq `1ae6b30`、BrowseCraft `d87b6a9` / `c699b39`，均推到各自 `origin/main`。闸门读数与本机一致：fwq `check_docs` 条款定义点 1215、APP-MEMO 定义点 45 / 引用 45、索引 1213 条；本仓架构闸门干净（六仓全扫）、探针自测命中跨行一处放过 debug 一处、文档闸门全过（A2 100 个 BCA / 56 个 BC 引用）。按 AGENTS 未 build、未跑测试。
 - 本机那三笔与远端同内容不同哈希，待本机 `git reset --hard origin/main` 对齐（先核 `origin/main..main` 只有这三笔）。审计报告 artifact 第七部分同日改口为已推送并补「其后收尾」一段。
+
+## 2026-10-22 日语本地化（设计书 Q1–Q8 全取 A）
+
+- 设计书是 Claude 文档「BrowseCraft 日语本地化设计书」（https://claude.ai/artifact/64szW4gpzYuXDnbnHaHc8H，写它的频道在网页端、本机无记录）。用户同日裁定 Q1–Q8 全取推荐项 A，术语表按草案定稿（ソース / カタログ / 見つける / マイ生成 / サイト例 / ライブラリ / お気に入り / 履歴 / 設定 / 動画・マンガ・本・オーディオブック / 通常モード・ハードモード / coin 小写不译 / ソース枠 / iCloud同期 / キャンペーン通知 / 問題を報告）；文中把日文与英数之间不加空格、`%d coin` 例外的写法贯彻到底。
+- App 侧四笔，按设计书第 7 节顺序：`53de1aed`（ja.lproj 两文件全量 + 闸门加 ja + 工程重生成 + `BCA-BUILD-009` 取号，一次提交——闸门要求键集合一致，拆开会让中间版本构建失败）、`999a1e46`（演示模式）、`3623e573`（11 处注释与 22 份 C 类文档的「三份 / 三语」改「各语言」，Q4）、`04e58ecf`（Q3 错误提示第二行只在 Debug 拼；Q5 地区名按界面语言取）。按 AGENTS 未 build、未跑测试；本地化闸门拿 10-13 的旧 Objects-normal 离线跑，四语键集合一致通过，10 条报错全是旧 stringsdata 里已被 10-20 审计（STATUS 第 13 节 #4）改名的键；两个改动的 Swift 文件 `swiftc -parse` 通过。
+- 仓外：PortalCore `66538f7` 给隐私政策加 article#ja、支持页加日语段（未部署，法律文本待译者复核）；产品页与内购的日语草稿写进 `docs/release/app-store-listing-ja.md`（随带日语的下一个版本填，Q8）。Firebase In-App Messaging 在 Chrome（用户已登录）里做：两条活动的本地化对话框各加「日语 (ja)」并填标题 / 正文 / 按钮——「限时活动 · 送 300 coin」已另存为草稿；「新账户欢迎页」是投放中的活动，译文已填到审核对话框，最后一步「发布」被本机自动模式的分类器拒绝（线上活动写入），留给用户在 Chrome 那个标签页里点。
+- 顺手发现、未处理：Campaign-And-Rate-Notices 第五节的锁屏活动推送由服务端脚本带各语言文案，脚本尚未写（HANDOFF 活动行），写时要带 ja；Features 层 16 处直接显示 `error.localizedDescription` 的地方不在 Q3 的 A 范围内，未动。文档闸门除本来就有的 `BC-DOC-061`（本机 fwq checkout 落后于远端，HANDOFF 首行挂账）外全过。

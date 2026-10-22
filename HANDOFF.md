@@ -35,6 +35,7 @@ python3 scripts/check-docs.py
 
 | 挂账 | 欠什么 | 合同 | STATUS |
 | --- | --- | --- | --- |
+| 日语本地化（设计书 https://claude.ai/artifact/64szW4gpzYuXDnbnHaHc8H，用户 2026-10-22 裁定 Q1–Q8 全取 A；App 侧四笔已合入，PortalCore 两页已提交、未部署） | build 一次让本地化闸门在编译产物上跑（离线只核过键集合）→ 日语系统模拟器走查（看点在 STATUS 第 14 节第二行）；控制台侧由用户做：Firebase「新账户欢迎页」的日语译文已填好但要在 Chrome 里点「发布」（自动模式不许发布线上活动），按 `docs/release/app-store-listing-ja.md` 填 ASC 日语产品页与 5 个内购日语名称、出日语截图；PortalCore 部署；活动推送脚本（服务端未写）要带 ja 文案；Q7 的 fwq 日文页误判简中另立工作项 | [architecture.md](docs/architecture.md) 第 3 节 `BCA-BUILD-009`；[scripts/README.md](scripts/README.md) check-localization 一节 | 第 14 节 |
 | 本机（Mac）checkout 与远端对齐：10-22 收尾三笔（`.text` 闸门、`APP-MEMO-035` 改指、fwq `app-memos.md` 常驻表）原在本机未推，桥接会话归档后由云端按原脚本重做推送，本机那三笔与远端同内容、不同哈希 | Mac 上对 BrowseCraft 与 fwq 各跑 `git fetch origin && git log --oneline origin/main..main`：只列那三笔（哈希见 status-log）就 `git reset --hard origin/main`；多出别的提交先报、不 reset；同一时刻归档的另两个桥接会话也可能留了本地提交，六仓各核一次 | — | 第 10 节 `BCA-OBS-012` 行；status-log「2026-10-22 收尾三笔云端重做」 |
 | `check-docs.py` 也核 `APP-MEMO` 引用（A2 / A3 现只查 `BC-*`；定义点在 fwq `app-memos.md`，fwq 不在时按 A0 的做法跳过并报告） | 立项，用户未裁定 | [Book-Kind-Wiring](docs/design/Book-Kind-Wiring-Design.md) 第三节的引用是现成样例 | — |
 | 取用公共规则重试沿用同一 `Idempotency-Key`（服务端 PortalCore 2026-10-21 已收：请求头 `[A-Za-z0-9._:-]{1,128}`，同用户、同网址、同键 24 小时内重发只扣一次、返回同样的 coinCharged） | 网址输入页每次「滑动取用」生成一个键（UUID 即可）、超时重发沿用同一键；不带键的行为不变（再扣一次）。10-21 发布前审计留首发后项② | PortalCore `docs/api/rule-generation.md`「coin」节；审计 https://claude.ai/artifact/EVW1iCtAq44dFangavfyBL | — |

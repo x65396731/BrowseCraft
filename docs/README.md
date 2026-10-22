@@ -154,6 +154,7 @@ App 侧的验证事实主要分「离线测试通过」「模拟器走通」「�
 
 - 模块划分、层与依赖方向、被 `scripts/check-architecture-boundaries.sh` 执行的不变量、并发、持久化、测试、构建：[architecture.md](architecture.md)
 - 维护脚本的用途与用法：[../scripts/README.md](../scripts/README.md)
+- 界面语言与本地化闸门（每种界面语言的 `Localizable.strings` 键集合一致、源码键齐全、基线只许收敛，语言清单只在 `scripts/check-localization.py` 一处，`BCA-BUILD-009`）：[architecture.md](architecture.md) 第 3 节；加语言的做法在 [../scripts/README.md](../scripts/README.md) 的 check-localization 一节
 - 规则执行语义（`responsePolicy`、itemPath、legacy 隔离、凭据与账号语义、执行边界）：[design/RuleExecutionSemantics.md](design/RuleExecutionSemantics.md)
 - 会话纪律：仓库根的 `AGENTS.md`。它被 git 忽略、只存在于本地，只写引用点（`BCA-DOC-015`）；SwiftSoup 与 Readium 边界的定义点在 architecture.md 第 3 节与读书 kind 接线文档
 

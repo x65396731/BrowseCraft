@@ -318,3 +318,19 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 发布后：依赖大版本升级（用户 2026-10-20 裁定上架后一次一个）——Firebase 13.0.1、GoogleMobileAds 13.11.0、GRDB 7.11.1、Nuke 13.2.0、KSPlayer 最新提交；每个单独立行、各自全量测试与真机 | 未编号 | required | approved | not-started | not-run | e596422a | 2026-10-20 |
 | 清单实施后的模拟器冒烟（iPhone 18 Pro / iOS 27.0，Debug，真实账号）：库页书籍列表与「上次听到」瓷砖、站点书详情（128 章、分段芯片、无横幅）、规则目录「我的生成」按天分组与 42 角标、「发现」示例与内部测试分区——改成存储属性的目录分组与书详情横幅槽都正常。未走到：Release 配置长按来源（#2）、站点书打开失败（#5）、预检挡下的提交（#6）、书详情重取失败横幅（#10），四处都要制造失败才看得到 | 未编号 | required | approved | implemented | simulator-passed | e564973b | 2026-10-20 |
 | TestFlight 1.0 (50) 真机走查修的几处：设置页「导出诊断日志」只在 Debug 构建出现（`BCA-OBS-016` 与设置页合同同步改口）；站点书阅读器章节取失败从一直转圈改为一页说明（分类器短句 + 返回重开即重试）并记 error 日志，Readium 导航器错误记日志；网络失败原因取 Alamofire 包着的底层错误；网址输入页提交失败按原因分两句（传输失败提示检查网络、本地拒绝提示重新检查网址）；来源页底注改「长按来源可打开库或删除」；撤回清单 #10 的书详情重取失败横幅（书详情按合同没有下拉刷新，横幅出不来）。随换话手势那一轮 build 与全量测试一起跑过 | `BCA-OBS-016` | required | approved | implemented | full-suite-passed | 9342ee05 | 2026-10-21 |
+
+## 14. 日语本地化（2026-10-22）
+
+设计书、术语表定稿与 Q1–Q8 裁定（用户 2026-10-22 全取 A）见 Claude 文档「BrowseCraft 日语本地化设计书」
+（https://claude.ai/artifact/64szW4gpzYuXDnbnHaHc8H）。仓外项（App Store Connect 日语产品页与内购、日语截图、Firebase 活动译文的发布、PortalCore 部署）由用户在控制台做，欠项在 HANDOFF 第 1 节。
+
+| 工作项 | 条款 | 决策 | 设计 | 实施 | 验证 | 检查点 | 更新日期 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `BrowseCraft/ja.lproj/Localizable.strings`（1063 键，分段注释与键序照抄 zh-Hans，占位符逐键核对）与 `InfoPlist.strings`（2 键）；`scripts/check-localization.py` 的 `LANGUAGES` 加 ja，闸门不变量取号 `BCA-BUILD-009`；XcodeGen 重新生成后 `knownRegions` 含 ja。闸门用 10-13 的旧 Objects-normal 离线跑：四语键集合一致通过，10 条报错全是旧 stringsdata 里已被 10-20 审计改名的键 | `BCA-BUILD-009` | required | approved | implemented | static-audit-passed | 53de1aed | 2026-10-22 |
+| 同上，build 下的本地化闸门与日语系统模拟器走查（设计书第 7 节验收清单：五个底栏页、规则目录、网址输入页、三种详情与阅读 / 播放页、设置各子页、删除账号页、权限弹窗，重点看芯片、胶囊按钮、导航栏标题的截断；推送三类锁屏文案与登记 `language` = ja） | `BCA-BUILD-009` | required | approved | implemented | not-run | 53de1aed | 2026-10-22 |
+| 演示模式日语：`DemoLanguage.japanese`（系统首选语言 ja 开头）、`DemoText.ja`，三个示例站、六个目录示例站、12 部作品名与 3 段简介、最新进度、集 / 话 / 章标题、影视属性、一章正文 13 段；日区截图从这里出 | 未编号 | required | approved | implemented | not-run | 999a1e46 | 2026-10-22 |
+| 语言枚举措辞收敛（Q4）：11 处代码注释的「en / zh-Hans / zh-Hant」「三语」与 22 份 C 类设计文档的「三份 Localizable.strings / InfoPlist.strings」「三语」改为不列举的「各语言」写法 | `BCA-BUILD-009` | required | approved | implemented | static-audit-passed | 3623e573 | 2026-10-22 |
+| 错误提示第二行只在 Debug 拼（Q3）：`RuleExecutionErrorClassifier.userMessage` 的 `withReason` 在 Release 只返回本地化第一行，原因串照旧进日志与问题报告；Features 层另有 16 处直接显示 `error.localizedDescription` 未动 | 未编号 | required | approved | implemented | not-run | 04e58ecf | 2026-10-22 |
+| 生成率一行的地区名按 App 界面语言取（Q5）：`VideoGenerationInputView.generationRateLine` 用主 bundle 首选本地化构造的 `Locale` 取地区名 | 未编号 | required | approved | implemented | not-run | 04e58ecf | 2026-10-22 |
+| 仓外：PortalCore 隐私政策 article#ja 与支持页日语段（PortalCore 仓已提交、未部署，法律文本待译者复核）；App Store 日语产品页与 5 个内购日语名称草稿 `docs/release/app-store-listing-ja.md`；Firebase In-App Messaging 两条活动的日语译文已在控制台填好（限时活动草稿已存；欢迎页为投放中的活动，「发布」由用户点） | 未编号 | required | approved | implemented | not-run | 04e58ecf | 2026-10-22 |
+| fwq 把无 `lang` 的日文页误判为简中（Q7）：另立 fwq 工作项按通用机制修（例如先看假名占比），不在本批 | 未编号 | required | approved | not-started | not-run | 04e58ecf | 2026-10-22 |
