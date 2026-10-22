@@ -115,7 +115,7 @@ enum CatalogLanguage: Hashable {
         }
     }
 
-    /// App 当前实际使用的界面语言（三份 Localizable 中的哪一份）。
+    /// App 当前实际使用的界面语言（各语言 Localizable 中的哪一份）。
     static var appLanguage: String {
         return Bundle.main.preferredLocalizations.first ?? "en"
     }

@@ -2105,3 +2105,8 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 ## 2026-10-22 本机 checkout 与远端对齐（用户「检查分支……解决冲突」）
 
 - 收尾三笔云端重做的本机一侧收口：BrowseCraft 本机 `e8c1e7d7` / `9adab207` 与远端 `d87b6a95` / `c699b39e`、fwq 本机 `d2e2c8af` 与远端 `1ae6b305` 逐笔 `git diff` 树为空，`origin/main..main` 只有这三笔；没用 `git reset --hard`，改用 `git rebase origin/main`，git 按「已应用」跳过这三笔，两仓 main 落在 origin/main。PortalCore 落后 2 笔（`66538f7`、`328c366`）快进；Core / Domain / Runtime / APIKit / Log 本来就对齐，七仓都只有 main、工作区干净。HANDOFF 第 1 节「本机（Mac）checkout 与远端对齐」一行删除。
+
+## 2026-10-22 日语本地化完成度核对的两处文字
+
+- STATUS 第 14 节「仓外」行：工作项格「PortalCore 仓已提交、未部署」→「PortalCore 仓已提交并已部署上线」。原因：两页已随 PortalCore `328c366` 部署（见上节），线上 `/privacy` `/support` 均含 `article#ja`；其余各格不变。
+- `CatalogRuleFacts.swift` 的 `appLanguage` 注释「三份 Localizable」→「各语言 Localizable」，Q4 措辞收敛时漏的一处。
