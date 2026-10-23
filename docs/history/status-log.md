@@ -2192,3 +2192,10 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 起因：kmansin09（漫画站）被按影视提交，失败在 `terminalPagesWithoutCarrier`，结果页只说「认不出可以直接读取的内容，暂不支持」，用户读不出是类型选错。线上 322 条任务里 6 个入口被换类型重交过、5 个换后成功（fwq 台账 `site-research/data/2026-10-23-kind-mismatch/`）。
 - 引擎侧「像另一种类型」的交叉判定量过：真选错 5 站、误报 8 站（有声书 iframe 播放器、小说装饰图 / 图片正文），不能断言「你选错了」；用户选只补中性提示、不依赖判定。
 - 改动：四语 `video_generation_outcome_detail_terminalPagesWithoutCarrier` 句末补「如果这个网站其实是另一种类型（视频、漫画或书籍），请换一种类型再试。」——类型名与类型卡片同一套词条（`Video` / `Comics` / `Books`）。只改词条、不改代码；推送按 `reason` 走 `siteNotSupported`，不带细分，这句只在结果页出现。`plutil -lint` 四份通过、键数一致；`check-localization.py` 要构建产物，按会话纪律未 build、未跑测试。
+
+## 2026-10-23 登录页「页内登录」提示（fwq `APP-MEMO-046`，用户「接着做，下一次一起发布」）
+
+- 起因：fwq `BC-COMIC-164` 第七档对「登录只有页内弹窗」的站把弹窗所在的那一页交成 `loginURL`（kmansin09 真机已出现登录入口），App 打开后是列表页，顶栏只有「Sign in to this source」，用户要自己找页内登录按钮。
+- 改动：BrowseCraftCore `SiteConfig` 加 `loginMode`（只认 `inPage`）与 `isInPageLogin`，漫画 V2、影视的 `site` 允许键加 `loginMode`，三类校验都要求同时有 `loginURL`，漫画 V1 迁移原样带过去；Core 新用例 `SiteLoginModeValidationTests` 6 条，全量 311 条 0 失败。
+  本仓 `LibrarySourceLoginState` 带 `isInPageLogin`（三类规则共用 `site(for:)`），`SourceLoginView` 页内登录时顶栏换成 `source_login_in_page_hint`（四语，「完成」与右上角按钮同一译名），`lineLimit(2)`。
+- 发布约束：旧版 App 遇到未知 `site` 键会拒整条规则，所以引擎交付开关 `IN_PAGE_LOGIN_MODE_DELIVERY_ENABLED` 关着，**随下一次 App 发版**、发版后再开（fwq `BC-COMIC-164` ③）。用户要求后 build + 模拟器测试（iPhone 17 Pro / iOS 26.5）：`SourceCredentialStoreTests` 13 条全过（含新增 `libraryLoginStateMarksInPageLoginFromRuleSite`）；模拟器里把本地来源 manga18.club 的规则临时加 `loginMode = inPage`，库页账号按钮打开登录页，顶栏显示页内登录提示、两行完整不截断，测完已还原数据。构建时遇到一次 `.derivedData` 里静态链接用的 `BrowseCraftRuleModels.swiftmodule` 是旧产物（没随 Core 改动重建），删掉后重建通过。四语 `plutil -lint` 通过、键数一致（1,080）。

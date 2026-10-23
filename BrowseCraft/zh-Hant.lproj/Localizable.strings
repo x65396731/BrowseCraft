@@ -273,6 +273,7 @@
 "settings_export_logs_failed" = "無法匯出診斷日誌。";
 "Settings" = "設定";
 "Sign in to this source" = "登入這個來源";
+"source_login_in_page_hint" = "請在頁面上點網站自己的「登入」按鈕，登入後點「完成」";
 "Site Base URL" = "網站位址";
 "Site Name" = "網站名稱";
 "Skip" = "略過";

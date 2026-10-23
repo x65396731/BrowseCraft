@@ -273,6 +273,7 @@
 "settings_export_logs_failed" = "診断ログを書き出せませんでした。";
 "Settings" = "設定";
 "Sign in to this source" = "このソースにログイン";
+"source_login_in_page_hint" = "ページ上のサイトの「ログイン」ボタンを押し、ログイン後に「完了」を押してください";
 "Site Base URL" = "サイトアドレス";
 "Site Name" = "サイト名";
 "Skip" = "スキップ";

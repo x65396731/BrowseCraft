@@ -273,6 +273,7 @@
 "settings_export_logs_failed" = "无法导出诊断日志。";
 "Settings" = "设置";
 "Sign in to this source" = "登录此来源";
+"source_login_in_page_hint" = "请在页面上点网站自己的「登录」按钮，登录后点「完成」";
 "Site Base URL" = "站点地址";
 "Site Name" = "站点名称";
 "Skip" = "跳过";

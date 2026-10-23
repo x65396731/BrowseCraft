@@ -122,9 +122,11 @@ struct SourceLoginView: View {
 
                 Spacer(minLength: 0)
 
-                Text("Sign in to this source")
+                // 中文注释：fwq `APP-MEMO-046`：页内登录时打开的是列表页，提示用户在页面上找登录按钮。
+                Text(self.state.isInPageLogin ? NSLocalizedString("source_login_in_page_hint", comment: "") : NSLocalizedString("Sign in to this source", comment: ""))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
         }
         .buttonStyle(.borderless)

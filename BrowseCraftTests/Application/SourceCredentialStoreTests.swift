@@ -34,6 +34,22 @@ struct SourceCredentialStoreTests {
         #expect(state?.loginURL.absoluteString == "https://example.test/login")
         #expect(state?.credentialKeys == ["accessToken", "refreshToken"])
         #expect(state?.status == .guest)
+        #expect(state?.isInPageLogin == false)
+    }
+
+    // 中文注释：fwq `APP-MEMO-046`：规则 `site.loginMode = "inPage"` 时，登录页要提示用户在页面上点登录按钮。
+    @Test func libraryLoginStateMarksInPageLoginFromRuleSite() throws {
+        let source: Source = try self.makeComicSource(
+            loginURL: "https://example.test/list/1",
+            loginMode: SiteConfig.inPageLoginMode
+        )
+
+        let state: LibrarySourceLoginState? = LibrarySourceLoginStateResolver(
+            credentialStore: InMemorySourceCredentialStore()
+        ).resolve(source: source)
+
+        #expect(state?.loginURL.absoluteString == "https://example.test/list/1")
+        #expect(state?.isInPageLogin == true)
     }
 
     @Test func capturedLoginSessionBuildsSourceScopedCredential() throws {
@@ -377,6 +393,7 @@ struct SourceCredentialStoreTests {
     private func makeComicSource(
         id: String = "comic.example",
         loginURL: String?,
+        loginMode: String? = nil,
         credentialKeys: [String] = []
     ) throws -> Source {
         var rule: SiteRule = try JSONDecoder().decode(
@@ -384,6 +401,7 @@ struct SourceCredentialStoreTests {
             from: Data(RuleJSONFixtures.completeV2SiteRule.utf8)
         )
         rule.site?.loginURL = loginURL
+        rule.site?.loginMode = loginMode
         if credentialKeys.isEmpty == false {
             var context: [String: SiteRuleContextValue] = rule.context ?? [:]
             credentialKeys.forEach { key in

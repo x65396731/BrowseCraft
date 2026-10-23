@@ -273,6 +273,7 @@
 "settings_export_logs_failed" = "Diagnostic logs could not be exported.";
 "Settings" = "Settings";
 "Sign in to this source" = "Sign in to this source";
+"source_login_in_page_hint" = "Tap the site's own Sign in button on this page, then tap Done";
 "Site Base URL" = "Site Base URL";
 "Site Name" = "Site Name";
 "Skip" = "Skip";

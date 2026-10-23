@@ -12,6 +12,9 @@ struct LibrarySourceLoginState: Hashable, Identifiable {
     let sourceName: String
     let baseURL: URL
     let loginURL: URL
+    /// 中文注释：fwq `APP-MEMO-046`：`loginURL` 是登录弹窗所在的那一页（规则 `site.loginMode = "inPage"`），
+    /// 用户要在页面上自己点登录按钮；登录页据此换一句提示。
+    let isInPageLogin: Bool
     let credentialKeys: [String]
     let status: LibrarySourceLoginStatus
 
@@ -45,6 +48,7 @@ struct LibrarySourceLoginStateResolver {
             sourceName: source.name,
             baseURL: baseURL,
             loginURL: loginURL,
+            isInPageLogin: self.site(for: source)?.isInPageLogin ?? false,
             credentialKeys: self.credentialKeys(for: source),
             status: self.hasActiveCredential(for: source.id) ? .authenticated : .guest
         )
@@ -99,13 +103,17 @@ struct LibrarySourceLoginStateResolver {
     }
 
     private func rawLoginURL(for source: Source) -> String? {
+        return self.site(for: source)?.loginURL
+    }
+
+    private func site(for source: Source) -> SiteConfig? {
         switch source.configuration {
         case .comic(let configuration):
-            return configuration.rule.site?.loginURL
+            return configuration.rule.site
         case .video(let configuration):
-            return configuration.rule.site.loginURL
+            return configuration.rule.site
         case .book(let configuration):
-            return configuration.rule.site?.loginURL
+            return configuration.rule.site
         case .plugin:
             return nil
         }
