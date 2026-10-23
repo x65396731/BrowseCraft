@@ -70,12 +70,15 @@ struct AudiobookCoverColorTests {
         #expect(AudiobookBackdropPalette(image: image) != nil)
     }
 
-    /// 色块取最鲜艳的簇：灰色不提饱和度，有色的提到 1.5 倍。
+    /// 色块取最鲜艳的簇：灰色不提饱和度，有色的提到 1.5 倍、至少 0.45（偏灰的天蓝提了 1.5 倍还是灰）。
     @Test func vividColorsAreBoostedButGraysAreNot() {
         let gray: AudiobookCoverColor = AudiobookCoverColor(hue: 0.6, saturation: 0.05, brightness: 0.7)
         let khaki: AudiobookCoverColor = AudiobookCoverColor(hue: 0.13, saturation: 0.4, brightness: 0.7)
+        let paleSky: AudiobookCoverColor = AudiobookCoverColor(hue: 0.56, saturation: 0.16, brightness: 0.62)
         #expect(gray.boosted() == gray)
         #expect(abs(khaki.boosted().saturation - 0.6) < 0.0001)
+        #expect(abs(paleSky.boosted().saturation - 0.45) < 0.0001)
+        #expect(paleSky.boosted().hue == paleSky.hue)
         #expect(khaki.vividness > gray.vividness)
     }
 

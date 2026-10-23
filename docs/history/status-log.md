@@ -2199,3 +2199,10 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 改动：BrowseCraftCore `SiteConfig` 加 `loginMode`（只认 `inPage`）与 `isInPageLogin`，漫画 V2、影视的 `site` 允许键加 `loginMode`，三类校验都要求同时有 `loginURL`，漫画 V1 迁移原样带过去；Core 新用例 `SiteLoginModeValidationTests` 6 条，全量 311 条 0 失败。
   本仓 `LibrarySourceLoginState` 带 `isInPageLogin`（三类规则共用 `site(for:)`），`SourceLoginView` 页内登录时顶栏换成 `source_login_in_page_hint`（四语，「完成」与右上角按钮同一译名），`lineLimit(2)`。
 - 发布约束：旧版 App 遇到未知 `site` 键会拒整条规则，所以引擎交付开关 `IN_PAGE_LOGIN_MODE_DELIVERY_ENABLED` 关着，**随下一次 App 发版**、发版后再开（fwq `BC-COMIC-164` ③）。用户要求后 build + 模拟器测试（iPhone 17 Pro / iOS 26.5）：`SourceCredentialStoreTests` 13 条全过（含新增 `libraryLoginStateMarksInPageLoginFromRuleSite`）；模拟器里把本地来源 manga18.club 的规则临时加 `loginMode = inPage`，库页账号按钮打开登录页，顶栏显示页内登录提示、两行完整不截断，测完已还原数据。构建时遇到一次 `.derivedData` 里静态链接用的 `BrowseCraftRuleModels.swiftmodule` 是旧产物（没随 Core 改动重建），删掉后重建通过。四语 `plutil -lint` 通过、键数一致（1,080）。
+
+## 2026-10-24 有声书播放页取色改 8 簇 + 色块饱和度下限 0.45（用户看离线对比图后选 D）
+
+- 起因：真机 Loyal Books《The Adventures of Tom Sawyer》播放页背景几乎是一片灰（用户「这个页面的视觉效果怎么没有」）。截图逐区比色与按同一算法推算一致：封面以白云、灰栅栏为主，5 簇把蓝天平均掉，色块饱和度最高 0.34，底色 #1a1b1c。
+- 量法：在 Mac 上照搬 `AudiobookBackdrop.swift` 的取色与背景视图渲染静止帧，7 张 Loyal Books 封面（Tom Sawyer、Monte Cristo、Peter Pan、Moby Dick、Pinocchio、Wuthering Heights、Dr. Moreau）× 6 种改法（A 现行 / B 下限 0.45 / C 8 簇 / D = B + C / E = D + 去灰与底色随主色 / F = E + 提亮）；A 列与真机截图逐区比色一致。D 救回灰封面、Peter Pan 与 Pinocchio 不变差；E 让 Pinocchio 的深蓝底变棕黑，F 抢封面。代价：Moby Dick 的米黄纸色在 D 下变成土黄调。
+- 改动：`dominantColors` 默认簇数 5 → 8；`boosted()` 饱和度提 1.5 倍后至少 0.45（< 0.08 的近灰簇仍不提）；底色仍取占比最大的一簇。旧值：5 簇、只提 1.5 倍无下限。设计稿第四节同步。
+- 测试：`vividColorsAreBoostedButGraysAreNot` 补偏灰天蓝提到 0.45 的断言；iPhone 17 Pro / iOS 26.5 跑 `AudiobookCoverColorTests`、`AudiobookPlaybackSpeedTests`、`AudiobookResourceFailureClassificationTests` 共 8 条通过。曾加一条「窄条天蓝 8 簇能分出、5 簇不能」的合成图用例，5 簇也分得出、Mac 上 9 种合成组合只有 1 种能区分（取决于初值落点），删掉不留；8 簇的效果靠真封面对比图，不靠合成图。真机未看。
