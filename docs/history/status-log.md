@@ -2239,3 +2239,13 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 
 - 用户真机（Xcode 装机，日志 `log-sinks-installed` 的 build 号仍是 55，按行为判断是含修复的包）在 hentaiasmr 乙女分类上走：启动时快照为空（`empty-no-current-snapshot`），首次加载 requestID=1 取回 200、18 条；随后三次下拉 requestID=2 / 3 / 4，`hentaiasmr.moe/category/otome` 分别 803 / 874 / 796 毫秒 200，`stage-finished`、`library-reload-after-refresh` 各 18 条。整段日志没有 `request-cancelled`、`stage-failed`、`rule-cancelled`，也没有失败横幅；修复前同一操作在模拟器上每次 14 毫秒即取消。用户报「无法重现缺陷 2」。
 - STATUS 第 12 节新增 `device-passed` 一行，模拟器那一行不改。其余五页 `.refreshable` 仍未核。
+
+## 2026-10-24 播放页型有声章节改走 App 内核（hentaiasmr 中文区音频无法播放，`015ab82a`）
+
+- 起因：用户报 hentaiasmr「中文区的音频无法播放」。线上规则三个分类共用一条播放规则（`a#tracking-url[href]`，`media.format = m4a`）；乙女区 RJ01166231 音频是 `cdn.hentaiasmr.moe/…/RJ01166231-1.m4a`，中文区 RJ01199877 是外站 `raw.kiko-play-niptan.one/…/2-mp3/….mp3`（不带 Referer 也 206 `audio/mpeg`）。模拟器复现：音频请求 200，随即 `AVFoundationErrorDomain -11829 / -12848`，`audio-request-failed` 是 `HTTPError.cancelled`（AVPlayer 解析失败后放弃，是后果）。链路：章节是作品页、`audioResolvedFromPage`，`BookPublicationAssembler` 用规则 format 填链接媒体类型，Readium `PublicationMediaLoader` 以它填 `contentType`，mp3 被当 MP4 解析。
+- 为什么不按真实地址扩展名定格式：Readium 的链接格式建出版物时就定死，页内地址要到播放器发请求时才解析；链接不带媒体类型的实验（未提交）：播放器不发请求、一直转圈。建出版物前逐集取页又不可行——线上 6 条有声规则里 5 条是页内解析，ting55 / 22ting / leting8 一部几百集、format 都写 m4a。用户选「页内音频改走 App 内核」。
+- 改动（`015ab82a`）：`BookPublicationManifest.usesAppAudioEngine`（全 HLS 或有播放页型章节）决定走 `SiteHLSAudioPlayer`，播放时解析、用真实 https 地址建 `AVURLAsset`，规则 format 不起作用；直链音频（loyalbooks）与文字书照旧走 Readium。回归时 leting8 第 1 集音频 404 只报 `NSURLErrorDomain -1100`、被归「暂时不稳」，补 `httpStatusCode(fromURLError:)`：`-1100` → 404、`-1102` → 403。
+- 测试：新增 `pageResolvedAudioTakesTheAppEngine`、`httpStatusIsInferredFromURLErrorCode`；iPhone 17 Pro / iOS 26.5 跑 `AudiobookPlayerTests`、`BookReaderViewModelTests`、`BookSiteDetailViewModelTests`、`BookSourceRuntimeEndToEndTests`、`ReadiumBookAdapterTests`、`SiteBookAudioHTTPClientTests`、`SiteHLSAudioPlayerTests` 通过（Swift Testing 6 组 41 条）；xcodebuild 跑完不退出，手动结束。
+- 模拟器回归（iPhone 18 Pro / iOS 27.0，真实账号，来源位置只有 1 个、逐个添加）：hentaiasmr 中文 RJ01199877 00:12 / 31:49、乙女 RJ01166231 00:09 / 01:02:18；22ting《最狂战神》第 1 集 00:18 / 16:54（`aod.cos.tx.xmcdn.com`）；leting8《守拙归田园》第 2 集 00:23 / 08:52，第 1 集音频 404（本机 curl 核实，第 2 集 206）改后提示「本集音频在站点上已失效」。ting55 找不到能出声的一集：《武神》音频 `wting.info/…` 带不带 Referer 都 404，《三界天帝录》播放页 WebView 渲染 12 秒超时（`SourceRuntimeError`）；暂存改动用改动前代码实测同样失败，是站点侧。测完加回 hentaiasmr。
+- 回归中另见：hentaiasmr 中文区多音轨作品（RJ01191766）`tracking-url` 的 href 为空，音轨在脚本 `playlist.push({ file: … })` 与 `meta[itemprop=contentURL]` 里，规则解析不出音频——规则覆盖缺口，与本改动无关，记 fwq 台账。
+- 未做：真机验证。
