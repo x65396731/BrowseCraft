@@ -2274,3 +2274,12 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 改动：`EntryPageGuideView` 整页重画（导航栏隐藏，`safeAreaInset` 底栏放主按钮，三组卡片自绘，不再用 `SettingsCardGroup` / `EmptyStateIconView`），新参数 `showsTourEyebrow`；`EntryPageGuideFlowView` 经环境读 `OnboardingTourStore.cameFromTour`、点按钮或取消时 `clearCameFromTour()`；`OnboardingTourStore` 在第 3 步出口为 `generate` 时置位；`CatalogStyle` 加 `tourIllustrationCard`（固定白）；四语各加 `entry_guide_tour_eyebrow`。词条、版本号 4、首次必过判定、`generation_guide_finished` 不动。合同写进 Generation-Input-Page-Redesign-Design.md 第三节「引导屏」一段（括号留 v1 旧样）与 Onboarding-Design.md 第五节。
 - 用户随后要求 build 并走查：Debug build 通过；干净 iPhone 18 Pro（iOS 27.0）带 `-BrowseCraftShowOnboarding` 从欢迎卡走到第 3 步，点「用网址生成」→ 添加来源页选「视频」→ 引导屏首屏形态（墨青色块、取消、青绿眉行、插画白卡、三组卡片、固定底部渐变主按钮），切深色再截一张；点主按钮进输入页，点「怎样的页面能生成？」叠出回看形态（无取消无眉行、墨青实心「知道了」），滚到底看例子行与渐变序号。4 张截图交用户，版式与画布第四排一致。
 - 未做：未跑测试；目录失败行 / 空状态入口的回看形态、日文长文、真机未看。
+
+## 2026-10-24 五项「待真机」用户确认通过（新版 App 发布后，用户「已经确认过了」）
+
+- STATUS 被覆盖的旧值（`BCA-DOC-006`），各行说明列末尾「待真机」→「真机已确认（用户 10-24「已经确认过了」）」，验证列与更新日期如下：
+  - 书籍库最新章一行去重前缀（2026-10-11 小說狂人 build 19 真机显示「最新 · 最新: 第1200章」→…：验证 `not-run` → `device-passed`，更新日期 `2026-10-11` → `2026-10-24`。
+  - 列表分页页码按 `startPage + N − 1` 代入（0 起页码站 rouman5 / 3kor；fwq `BC…：验证 `targeted-passed` → `device-passed`，更新日期 `2026-10-06` → `2026-10-24`。
+  - 站点按状态码拒绝不再报成「规则解析出错」（xjortho 拦桌面 UA 返回 403，正文被当成列表页解析；fwq `M…：验证 `full-suite-passed` → `device-passed`，更新日期 `2026-10-10` → `2026-10-24`。
+  - 搜索关键词恰为作品全名时站点直跳作品页、App 显示「没有结果」（fwq `BC-SEARCH-022` ⑤ / `AP…：验证 `targeted-passed` → `device-passed`，更新日期 `2026-10-11` → `2026-10-24`。
+  - 书类目录自身分页逐页取（fwq `BC-BOOK-061` / `APP-MEMO-033`；读书需求文档需求五后半，用…：验证 `targeted-passed` → `device-passed`，更新日期 `2026-10-11` → `2026-10-24`。
