@@ -2249,3 +2249,12 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 模拟器回归（iPhone 18 Pro / iOS 27.0，真实账号，来源位置只有 1 个、逐个添加）：hentaiasmr 中文 RJ01199877 00:12 / 31:49、乙女 RJ01166231 00:09 / 01:02:18；22ting《最狂战神》第 1 集 00:18 / 16:54（`aod.cos.tx.xmcdn.com`）；leting8《守拙归田园》第 2 集 00:23 / 08:52，第 1 集音频 404（本机 curl 核实，第 2 集 206）改后提示「本集音频在站点上已失效」。ting55 找不到能出声的一集：《武神》音频 `wting.info/…` 带不带 Referer 都 404，《三界天帝录》播放页 WebView 渲染 12 秒超时（`SourceRuntimeError`）；暂存改动用改动前代码实测同样失败，是站点侧。测完加回 hentaiasmr。
 - 回归中另见：hentaiasmr 中文区多音轨作品（RJ01191766）`tracking-url` 的 href 为空，音轨在脚本 `playlist.push({ file: … })` 与 `meta[itemprop=contentURL]` 里，规则解析不出音频——规则覆盖缺口，与本改动无关，记 fwq 台账。
 - 未做：真机验证。
+
+## 2026-10-24 新手引导 v2 视觉重设计（用户「整体流程没问题，UI 太朴素，不要系统默认按钮与颜色」，六项裁定全取 A）
+
+- 起因：用户看画布 v1 稿（白卡 + 系统蓝胶囊 + 黑 55% 蒙层）觉得朴素。流程（欢迎卡 → 三步 → 库页一步）、聚光目标、出口、埋点、判定全部不动，只重做引导层自己的样子。
+- 取舍：颜色不另起一套，用 App 里已有的品牌语言——等待标记的墨青 `brandWaitingFill` #0E1D25、书籍强调色 / 看板娘光标的青绿 #5CC8B0、引导屏困难档与内购套餐的饱和多彩渐变 `spectrumVivid`；深色只以「色块」形式出现在欢迎卡上半段（与类型瓷砖同一种语言，页面本身仍跟随系统）。底层来源页、库页的示意画得像真机（真实空状态插画、悬浮底栏）只为看效果，页面不改。
+- 六项裁定（画布「v2 · 取值与待裁定」板，用户全取 A）：① 每步气泡加一行小标题 + 图标；② 欢迎卡加视频 / 漫画 / 书籍三枚类型胶囊；③ 欢迎卡「开始」多彩渐变、步内按钮墨青实心（一大一小两档）；④ 挖空 2pt 多彩渐变描边 + 外发光；⑤ 蒙层墨青调 72% / 深色黑 78%；⑥ 色块底部保留「ANYPORTAL」字样。设置页回看行不在其内，沿用 v1。
+- 改动：`CatalogStyle` 的 `tourScrim` 改值，新增 `tourAccent`、`tourGlowOpacity`、`tourBubbleShadow`、`tourButtonFill`、`tourOnButton`、`tourPrimaryShadow`；`SpotlightTourStep` 加 `heading` 与 `icon`（`SpotlightTourIcon`：globe / tabs / plus / heart），`SpotlightTourOverlay` 重画蒙层描边与外发光（第 3 步青绿外环 1.6 秒呼吸，减弱动态效果静止）、气泡（三段进度条、墨青圆图标、小标题、墨青实心按钮、渐变字提示句）、欢迎卡（墨青色块 + 光圈 + 136pt 海报帧 + 「ANYPORTAL」+ 类型胶囊 + 渐变「开始」）；`OnboardingTour` 为每步拼小标题；四语各加 6 条词条（第 1、3 步各一句回看备选）。合同 `Onboarding-Design.md` 第三、四、七、八、十、十一节改写，第八节表格括号里留 v1 旧值。
+- 用户随后要求 build 并走查：Debug build 通过（iPhone 18 Pro / iOS 27.0，4 条既有警告：`LibraryView` 未用表达式、Firebase dSYM、AppIntents 元数据）。两台常用模拟器的来源表各有 6 / 8 条，直接重放只能得到回看形态，为看空库首装形态又不动数据，另建了一台干净的 iPhone 18 Pro（iOS 27.0）装包，带 `-BrowseCraftShowOnboarding` 启动、开屏点「跳过」。浅色与深色各走欢迎卡 → 三步，8 张截图交用户；版式、颜色与画布 v2 稿一致。观感项一处：第 1 步挖空的外发光晕压到空状态说明最后一行的下沿，文字仍可读；用户要求只向外扩——外发光加「整块减挖空」的遮罩把挖空内的一半遮掉，描边 8pt 改 10pt 补回外侧厚度，合同第八节同步；增量 build 通过，同一台干净模拟器重走到第 1 步，挖空内缘干净、说明文字不再被压，截图交用户。
+- 未做：未跑测试；未走回看形态、库页一步、减弱动态效果；真机未看。`OnboardingGuide.currentVersion` 不加（只换皮，文案实质未变，老用户不再看一次）。
