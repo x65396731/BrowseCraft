@@ -2234,3 +2234,8 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 改动（`d94fd2a9`）：`LibraryView` 的 `.refreshable` 把刷新放进独立任务、下拉只等它结束；`AlamofireHTTPClient.performDataRequest` 在调用方取消时抛 `CancellationError`，两个调用方原样转抛。运行时 `RuntimeStageLog` 本来就只认 `CancellationError` 记 `stage-cancelled`。
 - 测试：`AlamofireHTTPClientTests` 新增被取消的 `loadContent` / `loadData` 抛 `CancellationError` 两条，`LibraryViewModelTests.cancelledRefreshKeepsTheListWithoutAnError` 一条；iPhone 17 Pro / iOS 26.5 跑三组 22 条通过（默认 DerivedData 的兄弟包缓存旧、编不过 `isInPageLogin`，换独立 DerivedData 后通过）。模拟器复验：「中文」「乙女」各下拉一次，786 / 832 毫秒取回 200、列表重载、无横幅。三个代码闸门通过。
 - 未做：真机验证；收藏、设置、coin 记录、影视详情、漫画详情的 `.refreshable` 是同一写法，是否同样被取消未核（STATUS 第 12 节另起一行）。走查时为腾出位置删了模拟器上的「漢典古籍 小說」来源（历史与收藏保留）。
+
+## 2026-10-24 书架下拉刷新真机通过（`d94fd2a9`）
+
+- 用户真机（Xcode 装机，日志 `log-sinks-installed` 的 build 号仍是 55，按行为判断是含修复的包）在 hentaiasmr 乙女分类上走：启动时快照为空（`empty-no-current-snapshot`），首次加载 requestID=1 取回 200、18 条；随后三次下拉 requestID=2 / 3 / 4，`hentaiasmr.moe/category/otome` 分别 803 / 874 / 796 毫秒 200，`stage-finished`、`library-reload-after-refresh` 各 18 条。整段日志没有 `request-cancelled`、`stage-failed`、`rule-cancelled`，也没有失败横幅；修复前同一操作在模拟器上每次 14 毫秒即取消。用户报「无法重现缺陷 2」。
+- STATUS 第 12 节新增 `device-passed` 一行，模拟器那一行不改。其余五页 `.refreshable` 仍未核。

@@ -299,6 +299,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 合同第七节两项用例补齐：`LogFileSinkRecentLinesTests`（会话 / 时间窗 / 类别过滤、条数与字节上限、旧文件在前与坏行跳过，3 条）与 `BookSiteDetailViewModelTests` 的选集默认值用例（有续读位置默认那一章并标来自历史、没有时第一章）；本机 Xcode 26.0.1（Swift 6.2.0）要对 `perform` 调用、方法引用、字面量算式做等价改写才能编——改写只留本机工作区、不入库（构建机的 Xcode 27 不需要）；改写后 iPhone 17 Pro / iOS 26.0.1 模拟器上两组 10 条全过 | `BCA-OBS-020` | required | approved | implemented | targeted-passed | e9ccd6be | 2026-10-20 |
 | 其余页面的入口（来源内搜索、两种阅读器、有声书、视频播放器、来源页、规则目录）：用户 2026-10-19 取消，阅读与播放的问题改从详情页报 | `BCA-UI-006` | rejected | superseded | not-started | not-run | 86539af | 2026-10-19 |
 | 问题报告 R-UHEE-SAMK（10-24 hentaiasmr）与 R-A6KF-ZASK（10-22 spankbang）：书架下拉刷新的任务在本页重绘时被 SwiftUI 下拉控件取消（`PlatformRefreshControlProxy.configuration.didSet`），`AlamofireHTTPClient` 又把取消包成 `RuleExecutionError.network`，书架显示「网络请求失败。Request explicitly cancelled.」。改为下拉放进独立任务、客户端取消原样抛 `CancellationError`；新增 3 条用例，三组 22 条通过；iOS 27.0 模拟器两个分类下拉取回 200、无横幅；真机未验 | 未编号 | required | approved | implemented | simulator-passed | d94fd2a9 | 2026-10-24 |
+| 上一行的真机实测（用户 2026-10-24，Xcode 装机、日志 build 号仍为 55）：hentaiasmr 乙女分类，启动加载 1 次 + 下拉 3 次全部取回 200（803 / 874 / 796 毫秒、各 18 条），无 `request-cancelled`、无失败横幅；用户报「无法重现缺陷 2」 | 未编号 | required | approved | implemented | device-passed | d94fd2a9 | 2026-10-24 |
 | 收藏、设置、coin 记录、影视详情、漫画详情的 `.refreshable` 与书架改前同一写法，是否同样被取消未核 | 未编号 | optional | draft | not-started | not-run | d94fd2a9 | 2026-10-24 |
 
 ## 13. 全量代码审计（2026-10-20）
