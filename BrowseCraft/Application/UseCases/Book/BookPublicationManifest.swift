@@ -49,6 +49,15 @@ struct BookPublicationManifest: Hashable, Sendable {
         return audioMediaTypes.isEmpty == false
             && audioMediaTypes.allSatisfy { $0 == BookMediaFormat.hls.rwpmMediaType }
     }
+
+    /// 中文注释：播放走 App 自己的内核（`SiteHLSAudioPlayer`）：音频全是 HLS，或有播放页型章节（`audioResolvedFromPage`）。
+    /// 后者的真实音频地址要播放时取页才知道，Readium 却在建出版物时就把格式写死在链接上（`PublicationMediaLoader`
+    /// 以链接媒体类型填 `contentType`），只能用规则的 `media.format`；规则按样本写死、全站格式不一时解析失败
+    ///（2026-10-24 hentaiasmr 中文区外站 mp3 被标成 m4a，AVFoundation -11829）。链接不带格式也不行：播放器不发请求。
+    /// App 内核播放时才解析、用真实 https 地址建播放项，格式由系统按真实地址判断，规则的 `media.format` 不起作用。
+    var usesAppAudioEngine: Bool {
+        return self.isHLSAudiobook || self.items.contains { $0.audioResolvedFromPage }
+    }
 }
 
 /// 中文注释：按需取一章内容的端口；Runtime 的 `loadBookContent` 在用例里被包成这个闭包。

@@ -423,7 +423,27 @@ final class SiteHLSAudioPlayer: NSObject, @preconcurrency AudioSessionUser {
         if let code: Int = comments.reversed().lazy.compactMap(Self.httpStatusCode(inComment:)).first {
             return code
         }
-        return item.error.flatMap { Self.httpStatusCode(inComment: String(describing: $0)) }
+        if let code: Int = item.error.flatMap({ Self.httpStatusCode(inComment: String(describing: $0)) }) {
+            return code
+        }
+        return Self.httpStatusCode(fromURLError: item.error)
+    }
+
+    /// 中文注释：单文件音频（mp3 / m4a）HTTP 失败时错误日志与描述里都没有「HTTP 404」字样，播放项只给 `NSURLErrorDomain`：
+    /// 404 是 -1100（文件不存在）、403 是 -1102（无权读取）。按状态码还原，归类才与 Readium 那条路（`SiteBookAudioHTTPClient`
+    /// 拿得到状态码）一致——2026-10-24 leting8 第 1 集音频 404，改走本内核后只报 -1100，被当成「暂时不稳」而不是「已失效」。
+    nonisolated static func httpStatusCode(fromURLError error: (any Error)?) -> Int? {
+        guard let error: NSError = error.map({ $0 as NSError }), error.domain == NSURLErrorDomain else {
+            return nil
+        }
+        switch error.code {
+        case NSURLErrorFileDoesNotExist:
+            return 404
+        case NSURLErrorNoPermissionsToReadFile:
+            return 403
+        default:
+            return nil
+        }
     }
 
     nonisolated static func httpStatusCode(inComment comment: String) -> Int? {

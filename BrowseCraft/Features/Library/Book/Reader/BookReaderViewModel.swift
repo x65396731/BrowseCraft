@@ -281,9 +281,10 @@ final class BookReaderViewModel {
         self.currentLocator = self.initialLocator
         if loaded.manifest.isAudiobook {
             // 中文注释：有声作品不走 EPUB Navigator——播放内核默认用 Readium 的 AudioNavigator（AVPlayer + Locator）；
-            // 音频是 HLS 时用 App 自己的 HLS 内核（Readium 播不了 HLS 切片，fwq 设计稿第 83 节）。
+            // 音频是 HLS（Readium 播不了 HLS 切片，fwq 设计稿第 83 节）或要在播放页里解析（真实格式播放时才知道，
+            // 见 `BookPublicationManifest.usesAppAudioEngine`）时用 App 自己的内核。
             // 位置回调与文字书同一条进度 / 书签链路；播放由视图出现时触发（`startAudioPlayback`）。
-            if loaded.manifest.isHLSAudiobook, self.hlsAudioEngineBuilder != nil {
+            if loaded.manifest.usesAppAudioEngine, self.hlsAudioEngineBuilder != nil {
                 self.hlsContentProvider = loaded.contentProvider
             } else {
                 self.audioBridge = AudioNavigatorBridge(callbacks: self.audioPlaybackCallbacks)
@@ -306,7 +307,7 @@ final class BookReaderViewModel {
         )
     }
 
-    /// 中文注释：建一个播放内核（打开时与单集重试共用）：HLS 有声书用 `SiteHLSAudioPlayer`，其余用 Readium `AudioNavigator`。
+    /// 中文注释：建一个播放内核（打开时与单集重试共用）：HLS 或播放页型有声书用 `SiteHLSAudioPlayer`，其余用 Readium `AudioNavigator`。
     private func makeAudioEngine(publication: Publication, initialLocation: Locator?) -> any AudiobookPlaybackEngine {
         if let builder: any SiteHLSAudioEngineBuilding = self.hlsAudioEngineBuilder,
            let contentProvider: BookChapterContentProvider = self.hlsContentProvider,

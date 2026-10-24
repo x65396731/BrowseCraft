@@ -32,6 +32,18 @@ struct SiteHLSAudioPlayerTests {
         #expect(Self.manifest([.text]).isHLSAudiobook == false)
     }
 
+    /// 走 App 内核：全 HLS，或有播放页型章节（规则 format 与真实地址可能不一，10-24 hentaiasmr 中文区 mp3 被标成 m4a）；
+    /// 直链 mp3 / m4a 与文字书照旧走 Readium。
+    @Test func pageResolvedAudioTakesTheAppEngine() {
+        let m4a: String = BookMediaFormat.m4a.rwpmMediaType
+        #expect(Self.manifest([.audio(mediaType: Self.hls, durationSeconds: nil)]).usesAppAudioEngine)
+        #expect(Self.manifest([.audio(mediaType: m4a, durationSeconds: nil)], fromPage: true).usesAppAudioEngine)
+        #expect(Self.manifest([.audio(mediaType: nil, durationSeconds: nil)], fromPage: true).usesAppAudioEngine)
+        #expect(Self.manifest([.audio(mediaType: m4a, durationSeconds: nil)]).usesAppAudioEngine == false)
+        #expect(Self.manifest([.audio(mediaType: BookMediaFormat.mp3.rwpmMediaType, durationSeconds: nil)]).usesAppAudioEngine == false)
+        #expect(Self.manifest([.text]).usesAppAudioEngine == false)
+    }
+
     /// 播放页型章节取页解析：规则没给 Referer 时以章节页为 Referer（与 `SiteBookAudioHTTPClient` 同口径），规则给的头保留。
     @Test func pageChapterResolvesToPlaylistWithChapterReferer() async throws {
         let item: BookPublicationItem = BookPublicationItem(
@@ -109,6 +121,16 @@ struct SiteHLSAudioPlayerTests {
         ])
         let error: NSError = NSError(domain: NSURLErrorDomain, code: -1102, userInfo: [NSUnderlyingErrorKey: underlying])
         #expect(SiteHLSAudioPlayer.httpStatusCode(inComment: String(describing: error)) == 403)
+    }
+
+    /// 单文件音频的 HTTP 失败只有 URL 错误码：-1100 按 404、-1102 按 403（都归「已失效」），其余不猜（10-24 leting8 第 1 集 404）。
+    @Test func httpStatusIsInferredFromURLErrorCode() {
+        #expect(SiteHLSAudioPlayer.httpStatusCode(fromURLError: NSError(domain: NSURLErrorDomain, code: NSURLErrorFileDoesNotExist)) == 404)
+        #expect(SiteHLSAudioPlayer.httpStatusCode(fromURLError: NSError(domain: NSURLErrorDomain, code: NSURLErrorNoPermissionsToReadFile)) == 403)
+        #expect(SiteHLSAudioPlayer.httpStatusCode(fromURLError: NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)) == nil)
+        #expect(SiteHLSAudioPlayer.httpStatusCode(fromURLError: NSError(domain: "CoreMediaErrorDomain", code: -1100)) == nil)
+        #expect(SiteHLSAudioPlayer.httpStatusCode(fromURLError: nil) == nil)
+        #expect(BookAudioResourceFailure.kind(statusCode: 404) == .gone)
     }
 
     /// 播放状态映射与 Readium 一致：等待缓冲算加载中。
