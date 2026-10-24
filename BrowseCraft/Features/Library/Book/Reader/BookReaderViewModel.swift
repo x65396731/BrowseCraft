@@ -109,6 +109,19 @@ final class BookReaderViewModel {
         return self.loadedTitle ?? self.subject.title
     }
 
+    /// 中文注释：播放页封面与详情页、库页同一条请求口径：作品页地址作 Referer，图片请求配置走来源的 `imageRequestConfig`。
+    /// 此前播放页两者都不带，有防盗链的图床取不到（2026-10-24 真机 otomekoe：封面不带同站 Referer 是 403，详情页带了能出）。
+    var coverRefererURLString: String? {
+        return self.siteSelection?.item.detailURL
+    }
+
+    var coverRequestConfig: RequestConfig? {
+        guard let selection: SiteBookChapterSelection = self.siteSelection, case .book = selection.source.configuration else {
+            return nil
+        }
+        return ResolveLibrarySourcePresentationUseCase().imageRequestConfig(for: selection.source, listTab: nil)
+    }
+
     var bookID: UUID {
         return self.subject.bookID
     }

@@ -264,15 +264,16 @@ struct AudiobookPlayerView: View {
 
     // MARK: 封面图
 
-    /// 中文注释：与 `CoverImageView` 同一条请求链（http → https、请求头、Cookie），多要一份 `UIImage` 给取色与锁屏封面。
+    /// 中文注释：与 `CoverImageView` 同一条请求链（http → https、请求头、Cookie），多要一份 `UIImage` 给取色与锁屏封面；
+    /// Referer 与请求配置同详情页（作品页、来源的图片请求配置）。
     private func loadCover() async {
         self.coverImage = nil
         self.palette = .book
         guard let coverURL: URL = self.viewModel.coverURL,
               let identity: RemoteImageRequestIdentity = RemoteImageRequestIdentity(
                 urlString: coverURL.absoluteString,
-                refererURLString: nil,
-                requestConfig: nil,
+                refererURLString: self.viewModel.coverRefererURLString,
+                requestConfig: self.viewModel.coverRequestConfig,
                 additionalHeaders: nil,
                 displaySize: CGSize(width: Self.coverMaxSide, height: Self.coverMaxSide)
               ),
