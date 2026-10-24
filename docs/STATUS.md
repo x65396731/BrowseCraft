@@ -30,6 +30,7 @@ grep 该行点名的类型或文件，看有没有实现；在本表里交叉查
 | 批次 C：添加来源入口、站点书详情、共用 EPUB 阅读器、`SiteBookIdentity` 与迁移 v4 | `BC-BOOK-012` | required | approved | implemented | full-suite-passed | 8b280ff | 2026-09-14 |
 | 站点书整链（sfacg 添加 → 列表 → 作品 → 章节 → 正文 → 续读） | `BC-BOOK-012` | required | approved | implemented | device-passed | 9b3a7d8 | 2026-09-15 |
 | 站点有声作品的播放器（AudioNavigator 内核、远程 mp3 经 HTTPContainer、锁屏控制） | `BC-BOOK-012` | required | approved | implemented | simulator-passed | 11821b6 | 2026-09-14 |
+| 书类 HLS 有声播放另走 App 内核（fwq `APP-MEMO-047` / 设计稿第 83 节；10-24 真机 otomekoe 音频加载不出 → 用户批准）：`SiteHLSAudioPlayer` 用 `AVURLAsset` + `AVURLAssetHTTPHeaderFieldsKey` 带规则头与章节页 Referer，界面经 `AudiobookPlaybackEngine` 不分叉；模拟器实网探针带 Referer 出声、不带归 403 已失效；书类 74 条测试过；App 界面全流程与真机未走 | `APP-MEMO-047` | required | approved | implemented | simulator-passed | fb9fb958 | 2026-10-24 |
 | 站点书搜索：由规则声明，与漫画 / 影视同一条合同 | `BC-SEARCH-004` | required | approved | implemented | full-suite-passed | 84af71b | 2026-09-15 |
 | 站点书进 History 页：与漫画、视频同列 | 未编号 | required | approved | implemented | full-suite-passed | 79512a9 | 2026-09-16 |
 | book catalog 不发布进公共目录——2026-09-14 用户裁决发布 biquhua 后被取代，当前靠服务器 `kinds` 缺省不回 book | `BC-BOOK-001` | rejected | superseded | reverted | not-run | 43dfef2 | 2026-09-14 |
