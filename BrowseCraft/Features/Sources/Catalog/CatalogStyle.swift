@@ -124,10 +124,29 @@ enum CatalogPalette {
     static let headerScrim: Color = Color.black.opacity(0.45)
     /// 固定深色瓷砖 / 头图上的半透明白：进度条轨道、圆按钮底、徽章底，统一 16%（原各处 14% / 16% / 18%）。
     static let onDarkFill: Color = Color.white.opacity(0.16)
-    /// 新手引导聚光灯气泡层的蒙层（`docs/design/Onboarding-Design.md` 第八节）：黑 55%，深色下 65%。
+    // MARK: 新手引导聚光灯气泡层（Onboarding-Design.md 第八节；2026-10-24 v2 用户裁定：墨青 + 青绿 + 多彩渐变，不用系统蓝胶囊）
+    /// 蒙层：墨青调 72%，深色下黑 78%（v1 黑 55% / 65%，太轻、挖空不够亮）。
     static let tourScrim: Color = Color(uiColor: UIColor { traits in
-        return UIColor.black.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.65 : 0.55)
+        return traits.userInterfaceStyle == .dark
+            ? UIColor.black.withAlphaComponent(0.78)
+            : UIColor(hex: 0x08121A).withAlphaComponent(0.72)
     })
+    /// 引导层的强调色：青绿，深浅同值——书籍横幅强调色，也是看板娘手里光标的颜色；给挖空外环、气泡图标与按钮箭头。
+    static let tourAccent: Color = Self.fixed(0x5CC8B0)
+    /// 挖空外发光（多彩渐变描边经模糊）的不透明度。
+    static let tourGlowOpacity: Double = 0.6
+    /// 气泡与欢迎卡的投影：墨青 38%。
+    static let tourBubbleShadow: Color = Self.fixed(0x0E1D25).opacity(0.38)
+    /// 气泡按钮底：浅色墨青实心，深色反色（白 94%）——深色气泡底 #1C1C1E 上墨青看不出是按钮。
+    static let tourButtonFill: Color = Color(uiColor: UIColor { traits in
+        return traits.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.94) : UIColor(hex: 0x0E1D25)
+    })
+    /// 气泡按钮上的文字：浅色白，深色墨青。
+    static let tourOnButton: Color = Self.dynamic(light: 0xFFFFFF, dark: 0x0E1D25)
+    /// 欢迎卡「开始」渐变胶囊的投影：渐变第二色（紫）38%。
+    static var tourPrimaryShadow: Color {
+        return Self.spectrumVividColors[1].opacity(0.38)
+    }
 
     // MARK: 有声书播放页（沉浸深色，不随系统；Audiobook-Player-Page-Redesign-Design.md 第八节）
     /// 主字、播放键底、进度已听部分、滑块：白。

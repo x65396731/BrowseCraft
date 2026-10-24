@@ -1171,4 +1171,10 @@
 "onboarding_step_entry_hint" = "明るいカードをタップして続ける";
 "onboarding_step_entry_capsule_hint" = "明るいボタンをタップして続ける";
 "onboarding_library_hint" = "最初のサイトが入りました。表紙をタップして作品を開き、右上のハートでお気に入りに。見たものは履歴に残り、タップで続きから見られます。";
+"onboarding_heading_sources_empty" = "ソース＝ウェブサイト";
+"onboarding_heading_sources_in_use" = "使用中のサイト";
+"onboarding_heading_tabs" = "よく使う3つ";
+"onboarding_heading_entry_cards" = "最初のサイトを追加";
+"onboarding_heading_entry_capsule" = "サイトをもう1つ追加";
+"onboarding_heading_library" = "最初のサイトが入りました";
 "settings_onboarding_row" = "はじめてガイド";

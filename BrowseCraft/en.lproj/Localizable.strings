@@ -1171,4 +1171,10 @@
 "onboarding_step_entry_hint" = "Tap a highlighted card to continue";
 "onboarding_step_entry_capsule_hint" = "Tap the highlighted button to continue";
 "onboarding_library_hint" = "Your first site is in. Tap a cover to open it, and the heart in the corner to favorite it. Anything you’ve watched shows up in History; tap to continue.";
+"onboarding_heading_sources_empty" = "A source is a website";
+"onboarding_heading_sources_in_use" = "The site in use";
+"onboarding_heading_tabs" = "The three you’ll use most";
+"onboarding_heading_entry_cards" = "Add your first site";
+"onboarding_heading_entry_capsule" = "Add another site";
+"onboarding_heading_library" = "Your first site is in";
 "settings_onboarding_row" = "Quick Tour";

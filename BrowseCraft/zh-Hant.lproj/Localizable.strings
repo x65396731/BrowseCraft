@@ -1171,4 +1171,10 @@
 "onboarding_step_entry_hint" = "點亮著的卡片繼續";
 "onboarding_step_entry_capsule_hint" = "點亮著的按鈕繼續";
 "onboarding_library_hint" = "第一個網站進來了。點封面打開作品，右上角的愛心收藏；看過的會出現在歷史裡，點一下接著看。";
+"onboarding_heading_sources_empty" = "來源 = 一個網站";
+"onboarding_heading_sources_in_use" = "正在使用的網站";
+"onboarding_heading_tabs" = "常用的是這三個";
+"onboarding_heading_entry_cards" = "加第一個網站";
+"onboarding_heading_entry_capsule" = "再加一個網站";
+"onboarding_heading_library" = "第一個網站進來了";
 "settings_onboarding_row" = "新手引導";

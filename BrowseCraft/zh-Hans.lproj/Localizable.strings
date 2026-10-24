@@ -1171,4 +1171,10 @@
 "onboarding_step_entry_hint" = "点亮着的卡片继续";
 "onboarding_step_entry_capsule_hint" = "点亮着的按钮继续";
 "onboarding_library_hint" = "第一个网站进来了。点封面打开作品，右上角的爱心收藏；看过的会出现在历史里，点一下接着看。";
+"onboarding_heading_sources_empty" = "来源 = 一个网站";
+"onboarding_heading_sources_in_use" = "正在使用的网站";
+"onboarding_heading_tabs" = "常用的是这三个";
+"onboarding_heading_entry_cards" = "加第一个网站";
+"onboarding_heading_entry_capsule" = "再加一个网站";
+"onboarding_heading_library" = "第一个网站进来了";
 "settings_onboarding_row" = "新手引导";

@@ -3,6 +3,7 @@ import Observation
 
 // 中文注释：OnboardingTour.swift 属于界面功能层，承载新手引导的判定、阶段机与各步文案
 // （`docs/design/Onboarding-Design.md`）。引导层本身在 `SpotlightTourOverlay`，根视图把这里的当前步交给它画。
+// 2026-10-24 v2：每步多一行小标题与一枚图标（第四节，用户裁定 1 取 A）；第 1、3 步的小标题随回看形态换备选。
 
 /// 新手引导的呈现判定与版本号。
 enum OnboardingGuide {
@@ -192,7 +193,10 @@ final class OnboardingTourStore {
             return SpotlightTourStep(
                 id: "welcome",
                 focus: .none,
+                progress: nil,
                 counter: nil,
+                heading: nil,
+                icon: nil,
                 message: NSLocalizedString("onboarding_welcome_message", comment: "欢迎卡正文"),
                 mode: .welcome(
                     title: NSLocalizedString("onboarding_welcome_title", comment: "欢迎卡标题"),
@@ -204,7 +208,13 @@ final class OnboardingTourStore {
             return SpotlightTourStep(
                 id: "sources-1",
                 focus: .anchor(.sourcesEmptyState, fallback: .sourcesInUseCard),
+                progress: SpotlightTourProgress(index: 1, total: totalSteps),
                 counter: Self.counter(1, of: totalSteps),
+                heading: NSLocalizedString(
+                    hasSources ? "onboarding_heading_sources_in_use" : "onboarding_heading_sources_empty",
+                    comment: "第 1 步小标题"
+                ),
+                icon: .globe,
                 message: NSLocalizedString(
                     hasSources ? "onboarding_step_sources_in_use" : "onboarding_step_sources_empty",
                     comment: "第 1 步正文"
@@ -217,7 +227,10 @@ final class OnboardingTourStore {
             return SpotlightTourStep(
                 id: "sources-2",
                 focus: .tabBar,
+                progress: SpotlightTourProgress(index: 2, total: totalSteps),
                 counter: Self.counter(2, of: totalSteps),
+                heading: NSLocalizedString("onboarding_heading_tabs", comment: "第 2 步小标题"),
+                icon: .tabs,
                 message: NSLocalizedString("onboarding_step_tabs", comment: "第 2 步正文"),
                 mode: .bubble(buttonTitle: NSLocalizedString("onboarding_next", comment: "下一步")),
                 cornerRadius: 12
@@ -226,7 +239,13 @@ final class OnboardingTourStore {
             return SpotlightTourStep(
                 id: "sources-3",
                 focus: .anchor(.sourcesEntryCards, fallback: .sourcesActionCapsule),
+                progress: SpotlightTourProgress(index: 3, total: totalSteps),
                 counter: Self.counter(3, of: totalSteps),
+                heading: NSLocalizedString(
+                    hasSources ? "onboarding_heading_entry_capsule" : "onboarding_heading_entry_cards",
+                    comment: "第 3 步小标题"
+                ),
+                icon: .plus,
                 message: NSLocalizedString(
                     hasSources ? "onboarding_step_entry_capsule" : "onboarding_step_entry_cards",
                     comment: "第 3 步正文"
@@ -244,7 +263,10 @@ final class OnboardingTourStore {
             return SpotlightTourStep(
                 id: "library",
                 focus: .anchor(.libraryFirstCover, fallback: nil),
+                progress: nil,
                 counter: nil,
+                heading: NSLocalizedString("onboarding_heading_library", comment: "库页那一步小标题"),
+                icon: .heart,
                 message: NSLocalizedString("onboarding_library_hint", comment: "库页那一步正文"),
                 mode: .bubble(buttonTitle: NSLocalizedString("onboarding_done", comment: "知道了")),
                 // 中文注释：海报圆角 14。
