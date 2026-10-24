@@ -93,3 +93,17 @@ struct AudiobookCoverColorTests {
         #expect(bright.adjusted(saturationCap: 0.55, brightness: 0.11).brightness == 0.11)
     }
 }
+
+struct AudiobookMeshBackdropTests {
+    /// 颜色轮换 10 秒一圈：起点停在第一色，走到两色正中是一半，满 10 秒回到起点，最后一色之后接回第一色。
+    @Test func colorCycleWrapsEveryTenSeconds() {
+        let start: (index: Int, next: Int, fraction: Double) = AudiobookMeshBackdrop.cycleStop(seconds: 0, phase: 0, count: 3)
+        #expect(start.index == 0 && start.next == 1 && start.fraction == 0)
+        let halfway: (index: Int, next: Int, fraction: Double) = AudiobookMeshBackdrop.cycleStop(seconds: 10.0 / 6.0, phase: 0, count: 3)
+        #expect(halfway.index == 0 && abs(halfway.fraction - 0.5) < 0.0001)
+        let lap: (index: Int, next: Int, fraction: Double) = AudiobookMeshBackdrop.cycleStop(seconds: 10, phase: 0, count: 3)
+        #expect(lap.index == 0 && lap.fraction < 0.0001)
+        let last: (index: Int, next: Int, fraction: Double) = AudiobookMeshBackdrop.cycleStop(seconds: 0, phase: 0.9, count: 3)
+        #expect(last.index == 2 && last.next == 0)
+    }
+}

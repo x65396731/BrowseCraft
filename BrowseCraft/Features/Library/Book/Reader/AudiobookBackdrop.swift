@@ -1,10 +1,11 @@
 import SwiftUI
 import UIKit
 
-// 中文注释：有声书播放页的沉浸背景（docs/design/Audiobook-Player-Page-Redesign-Design.md 第四节，用户 2026-10-20 看画布后定）：
-// 从封面取 3 个主色并压暗，一个做底、三团柔边色块缓慢漂移；没有封面时用书籍青绿深调。
-// 性能约束（同节）：色块用径向渐变画成柔边，不做逐帧的实时模糊；动画只改位移与缩放，交给 Core Animation 合成；
-// 取色只在拿到封面时做一次（缩到 24×24）；回到后台、开了「减弱动态效果」时停住。不播视频、不碰音频会话。
+// 中文注释：有声书播放页的沉浸背景（docs/design/Audiobook-Player-Page-Redesign-Design.md 第四节，用户 2026-10-20 看画布后定，
+// 10-24 看预览视频与真机读数后改成 MeshGradient 流体）：从封面取 3 个主色，一个压暗做底、三个在 3×3 网格里轮换并流动；
+// 没有封面时用书籍青绿深调。性能约束（同节）：网格每秒最多重绘 30 帧，回到后台停；开了低电量模式或「减弱动态效果」时
+// 退回三团径向渐变色块漂移（只改位移与缩放，交给 Core Animation 合成，减弱动态效果时停住）。
+// 取色只在拿到封面时做一次（缩到 24×24）。不播视频、不碰音频会话。
 
 /// 背景的四个颜色：底色与三团色块。
 struct AudiobookBackdropPalette: Equatable {
@@ -152,8 +153,99 @@ struct AudiobookCoverColor: Equatable {
     }
 }
 
-/// 流动背景：底色 + 三团柔边色块各自 16 / 19 / 22 秒往返漂移，底部加暗让白字可读。
+/// 流动背景：平时是 MeshGradient 流体；低电量模式、减弱动态效果时退回色块漂移。
 struct AudiobookFlowingBackdrop: View {
+    let palette: AudiobookBackdropPalette
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion: Bool
+    @State private var isLowPowerMode: Bool = ProcessInfo.processInfo.isLowPowerModeEnabled
+
+    var body: some View {
+        Group {
+            if self.reduceMotion || self.isLowPowerMode {
+                AudiobookDriftingBackdrop(palette: self.palette)
+            } else {
+                AudiobookMeshBackdrop(palette: self.palette)
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .task {
+            // 中文注释：通知在任意线程发出；用 async 序列在视图的主 actor 任务里读，开关低电量模式时即时切换。
+            for await _ in NotificationCenter.default.notifications(named: .NSProcessInfoPowerStateDidChange) {
+                self.isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+            }
+        }
+    }
+}
+
+/// 中文注释：MeshGradient 流体（2026-10-24 用户选定）：3×3 网格，四角是底色，边中点与中心在三个封面色之间轮换（10 秒一圈），
+/// 边中点沿边、中心点在画面里缓慢游走；TimelineView 每秒最多 30 帧，App 不在前台时暂停。底部加暗让白字可读。
+/// 真机读数（iPhone 15，不限帧时）：比色块漂移多约 6.5 个点 App CPU、GPU 忙碌多 25–40%，所以限 30 帧。
+struct AudiobookMeshBackdrop: View {
+    let palette: AudiobookBackdropPalette
+
+    @Environment(\.scenePhase) private var scenePhase: ScenePhase
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: self.scenePhase != .active)) { context in
+            let seconds: Double = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 100_000)
+            let s: Float = Float(seconds)
+            let ring: [Color] = self.palette.blobs
+            let base: Color = self.palette.base
+            ZStack {
+                MeshGradient(
+                    width: 3,
+                    height: 3,
+                    points: [
+                        [0, 0], [0.5 + 0.2 * sin(s * 0.7), 0], [1, 0],
+                        [0, 0.5 + 0.2 * sin(s * 0.9)], [0.5 + 0.25 * sin(s * 0.6), 0.5 + 0.2 * cos(s * 0.8)], [1, 0.5 + 0.2 * cos(s * 0.7)],
+                        [0, 1], [0.5 + 0.2 * cos(s * 0.5), 1], [1, 1]
+                    ],
+                    colors: [
+                        base, Self.cycle(ring, seconds, phase: 0), base,
+                        Self.cycle(ring, seconds, phase: 0.33), Self.cycle(ring, seconds, phase: 0.66), Self.cycle(ring, seconds, phase: 0.15),
+                        base, Self.cycle(ring, seconds, phase: 0.5), base
+                    ]
+                )
+                AudiobookBackdropScrim()
+            }
+        }
+    }
+
+    private static func cycle(_ colors: [Color], _ seconds: Double, phase: Double) -> Color {
+        let stop: (index: Int, next: Int, fraction: Double) = Self.cycleStop(seconds: seconds, phase: phase, count: colors.count)
+        return colors[stop.index].mix(with: colors[stop.next], by: stop.fraction)
+    }
+
+    /// 中文注释：颜色轮换的位置：10 秒走完一圈 `count` 个颜色，相邻两色之间缓入缓出；`phase` 是一圈里的起点（0–1）。
+    static func cycleStop(seconds: Double, phase: Double, count: Int) -> (index: Int, next: Int, fraction: Double) {
+        let lap: Double = (seconds / 10 + phase).truncatingRemainder(dividingBy: 1)
+        let position: Double = (lap < 0 ? lap + 1 : lap) * Double(count)
+        let index: Int = min(Int(position), count - 1)
+        let fraction: Double = (1 - cos(.pi * (position - Double(index)))) / 2
+        return (index, (index + 1) % count, fraction)
+    }
+}
+
+/// 底部加暗让白字可读；两种背景共用。
+struct AudiobookBackdropScrim: View {
+    var body: some View {
+        LinearGradient(
+            stops: [
+                .init(color: CatalogPalette.immersiveScrim.opacity(0.22), location: 0),
+                .init(color: CatalogPalette.immersiveScrim.opacity(0.11), location: 0.4),
+                .init(color: CatalogPalette.immersiveScrim, location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+}
+
+/// 色块漂移（低电量模式、减弱动态效果时的退路）：底色 + 三团柔边色块各自 16 / 19 / 22 秒往返漂移，底部加暗让白字可读。
+struct AudiobookDriftingBackdrop: View {
     let palette: AudiobookBackdropPalette
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion: Bool
@@ -178,15 +270,7 @@ struct AudiobookFlowingBackdrop: View {
                     .scaleEffect(self.isDrifting ? 1.12 : 0.95)
                     .offset(x: -width * 0.12 + (self.isDrifting ? 40 : 0), y: height * 0.42 + (self.isDrifting ? -70 : 0))
                     .animation(self.drift(seconds: 22), value: self.isDrifting)
-                LinearGradient(
-                    stops: [
-                        .init(color: CatalogPalette.immersiveScrim.opacity(0.22), location: 0),
-                        .init(color: CatalogPalette.immersiveScrim.opacity(0.11), location: 0.4),
-                        .init(color: CatalogPalette.immersiveScrim, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                AudiobookBackdropScrim()
             }
             .frame(width: width, height: height)
             .clipped()

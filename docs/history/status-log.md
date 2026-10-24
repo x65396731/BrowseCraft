@@ -2219,3 +2219,10 @@ STATUS.md 被覆盖的旧值（`BCA-DOC-006`）：第 4 节续看位置同步两
 - 真机（用户截图）：otomekoe 作品《【がるまにカレシ】vol.4 愛重ためな犬系後輩 白河秀二…》播放页在播，00:15 / 25:48——`APP-MEMO-047` 的 HLS 内核真机通过。STATUS 第 1 节该行旧值：验证列 `simulator-passed`、说明末尾「App 界面全流程与真机未走」→ 新值 `device-passed`、「10-24 真机 otomekoe 播放页出声（00:15 / 25:48），同日查出播放页封面不带 Referer、已补」。
 - 同一张截图「没封面」：详情规则取到 `https://pic.weeabo0.xyz/RJ01633471_img_main.jpg`（`[id*='cover'] img` 按备选落到 `data-src`），这张图不带 Referer 或带外站 Referer 403、带同站 Referer 200（本地家用出口各 1 次）。库页行、详情页封面都以作品页为 Referer 并带来源的图片请求配置，只有 `AudiobookPlayerView.loadCover` 传的是 `refererURLString: nil`、`requestConfig: nil`。
 - 改动：`BookReaderViewModel.coverRefererURLString`（作品页地址）与 `coverRequestConfig`（`ResolveLibrarySourcePresentationUseCase().imageRequestConfig`，与 `BookSiteDetailViewModel.coverRequestConfig` 同口径），播放页取封面时带上；`openingSiteAudiobookBuildsAnAudioNavigator` 补 Referer 断言。iPhone 17 Pro / iOS 26.5 跑 `BookReaderViewModelTests`、`AudiobookCoverColorTests`、`SiteHLSAudioPlayerTests` 共 19 条通过；封面真机未看。
+
+## 2026-10-24 有声书播放页背景改 MeshGradient 流体，限 30 帧（用户看预览视频与真机读数后选定）
+
+- 起因：真机录屏（がるまにカレシ vol.4）里背景「只是颜色变了、看不出动画」。录屏逐 2 秒取背景平均色：16 秒内各处只变 10–20 个色阶——原色块漂移 16 / 19 / 22 秒一程、只挪 40–80pt，肉眼等于不动。
+- 量法：Mac 上逐帧渲染四列预览（现行 / ① 加快加大 / ② ① + 色块轮换颜色 / ③ MeshGradient 流体，各 10 秒，现行列与真机录屏比色一致），封面用这本与 Tom Sawyer；用户看后要 ③，再量耗电。真机（iPhone 15、调试包 `-O`）临时测量包按系统时钟每 30 秒交替现行与 ③，Power Profiler + Activity Monitor + GPU 全进程录 132 秒，两段完整的各取均值：App CPU 10.1 / 10.5% → 17.1 / 16.8%，backboardd 27.8 / 28.3% → 38.0 / 34.5%，audiomxd 不变（约 10%），GPU 忙碌（秒 / 30 秒）12.5 → 15.6 / 17.6（现行时 App 自身 GPU 为 0，③ 时 6.4–7.6）。插线充电，整机功耗读数全程 0%/hr，量不到掉电速度。测量代码未提交、量完撤掉。
+- 改动：`AudiobookFlowingBackdrop` 改为选择器——平时 `AudiobookMeshBackdrop`（3×3 网格，四角底色，边中点与中心在三个封面色之间 10 秒一圈轮换，TimelineView 最多 30 帧、不在前台暂停），开了低电量模式或「减弱动态效果」时退回原色块漂移（改名 `AudiobookDriftingBackdrop`，参数不变）；底部加暗抽成 `AudiobookBackdropScrim` 两边共用。调用处不变。设计稿第四节与验收清单同步；新测试 `AudiobookMeshBackdropTests.colorCycleWrapsEveryTenSeconds`。
+- 未做：限 30 帧后的真机读数；单一色调封面（这本三色全是头发的棕 #9e603b / #9e5f48 / #9e7556）流动时仍只有棕色，要换色得另改取色。

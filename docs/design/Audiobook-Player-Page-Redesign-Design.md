@@ -44,10 +44,12 @@ Readium 只给引擎：`AudioNavigator`（播放、拖动、换集、倍速、�
 状态栏文字由系统按背后内容自动取白色（与影视详情深色头图同一做法）。
 
 **封面取色的流动背景**（`AudiobookFlowingBackdrop`）：封面缩到 24×24 做 8 簇取色（`AudiobookBackdropPalette`；簇少了小块的天空、皮肤会被大片白云、栅栏平均成灰），占比最大的一簇压暗做底（饱和度上限 0.55、亮度 0.11）；
-三团色块取最鲜艳的三簇、饱和度提到 1.5 倍且至少 0.45（饱和度低于 0.08 的近乎灰簇不提）、饱和度上限 0.65、亮度压在 0.38–0.62（按占比取会把天空、白栅栏与衣服平均成一片灰）。三团柔边色块各自
-16 / 19 / 22 秒往返漂移，底部加暗让字可读；没有封面用书籍青绿深调（底 #07120F，色块 #1E7D68 / #152A26 / #2F8F7A）。
-性能约束：色块用径向渐变画成柔边，不做逐帧实时模糊；动画只改位移与缩放交给 Core Animation 合成；取色只在拿到封面时把封面缩到 24×24 做一次；
-回到后台、开了「减弱动态效果」时停住。不播视频、不碰音频会话（内购页那种循环视频背景不采用）。
+三个封面色取最鲜艳的三簇、饱和度提到 1.5 倍且至少 0.45（饱和度低于 0.08 的近乎灰簇不提）、饱和度上限 0.65、亮度压在 0.38–0.62（按占比取会把天空、白栅栏与衣服平均成一片灰）。
+平时画成 MeshGradient 流体（`AudiobookMeshBackdrop`）：3×3 网格，四角是底色，边中点与中心在三个封面色之间轮换（10 秒一圈、相邻两色缓入缓出），边中点沿边、中心点在画面里缓慢游走；
+底部加暗让字可读；没有封面用书籍青绿深调（底 #07120F，三色 #1E7D68 / #152A26 / #2F8F7A）。
+性能约束：网格由 TimelineView 每秒最多重绘 30 帧，App 不在前台时暂停；开了低电量模式或「减弱动态效果」时退回色块漂移（`AudiobookDriftingBackdrop`：三团径向渐变柔边色块各自
+16 / 19 / 22 秒往返漂移，只改位移与缩放交给 Core Animation 合成，减弱动态效果时停住）。取色只在拿到封面时把封面缩到 24×24 做一次。不播视频、不碰音频会话（内购页那种循环视频背景不采用）。
+真机读数（iPhone 15、播放中、不限帧，与色块漂移按 30 秒交替）：App CPU 约 10% → 17%，系统合成 backboardd 约 28% → 35–38%，GPU 忙碌时间多 25–40%；插线充电时量不到整机掉电速度。
 
 | 块 | 样子 |
 | --- | --- |
@@ -99,7 +101,7 @@ Readium 只给引擎：`AudioNavigator`（播放、拖动、换集、倍速、�
 ## 九、实现位置
 
 - `BrowseCraft/Features/Library/Book/Reader/AudiobookPlayerView.swift`：播放页、`AudiobookLoadingView`、顶栏、主控件、眉行波形、`AudiobookProgressBar`、`AudiobookTimeFormatter`、`AudiobookFailureStrip`、倍速菜单。
-- `AudiobookBackdrop.swift`：`AudiobookBackdropPalette`、`AudiobookCoverColor`（24×24 k-means 取色）、`AudiobookFlowingBackdrop`。
+- `AudiobookBackdrop.swift`：`AudiobookBackdropPalette`、`AudiobookCoverColor`（24×24 k-means 取色）、`AudiobookFlowingBackdrop`（按低电量模式与减弱动态效果选背景）、`AudiobookMeshBackdrop`（流体）、`AudiobookDriftingBackdrop`（色块漂移退路）、`AudiobookBackdropScrim`。
 - `AudiobookContentsSheet.swift`：目录 sheet；`AudiobookPlaybackSpeed.swift`：倍速五档与记忆。
 - `BookReaderView.swift`：有声书隐藏系统导航栏与工具栏按钮、打开中骨架、失败态下拉重试；文字书分支不变。
 - `BookReaderViewModel.swift`：集序号与总集数、单集失败表、听完、倍速、上下集 / 重试 / 点集、锁屏封面、`reopen()`、`expectsAudiobook`；打开时按章计分只给文字书。
@@ -115,4 +117,4 @@ Readium 只给引擎：`AudioNavigator`（播放、拖动、换集、倍速、�
 - 模拟器：Loyal Books（有封面、取色）与中文有声站（无封面）各走一遍：播放 / 暂停、拖动、上下集、−10 / +30、倍速五档与重启后记忆、目录滚到当前集与点集、听完最后一集、深色背景在后台回来时停住与恢复。
 - 单集失效：leting8 作品 20928 第 1 集（xmcdn 404）应出「本集音频在站点上已失效」横条、不转圈、「下一集」能播；断网时应出「没加载出来」+「重试」。
 - 广告：有声书打开后立刻不弹广告；实际播放 600 秒记一次分。
-- 真机：锁屏封面与倍速、耳机线控、Instruments Energy Log 看流动背景的耗电。
+- 真机：锁屏封面与倍速、耳机线控；流体背景限 30 帧后的 CPU / GPU 读数、拔线后的整机掉电速度。
