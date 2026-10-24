@@ -6,6 +6,8 @@ import WebKit
 final class SourceLoginWebCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
     let configuration: WKWebViewConfiguration
     private weak var webView: WKWebView?
+    /// 中文注释：协调器先于 WebUI 创建的 WKWebView 释放时把代理置空，见 `WebViewDelegateDetacher`。
+    private let delegateDetacher: WebViewDelegateDetacher = WebViewDelegateDetacher()
 
     override init() {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
@@ -34,6 +36,7 @@ final class SourceLoginWebCoordinator: NSObject, ObservableObject, WKUIDelegate,
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation?) {
         self.webView = webView
+        self.delegateDetacher.attach(webView)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {

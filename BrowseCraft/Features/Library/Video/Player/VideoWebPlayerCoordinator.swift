@@ -56,6 +56,8 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
 
     let configuration: WKWebViewConfiguration
     let initialHost: String?
+    /// 中文注释：协调器先于 WebUI 创建的 WKWebView 释放时把代理置空，见 `WebViewDelegateDetacher`。
+    private let delegateDetacher: WebViewDelegateDetacher = WebViewDelegateDetacher()
     private let mainFrameNavigationNoiseFilter: SourceContentNoiseFilter = SourceContentNoiseFilter()
     private var allowedMobileAlternateHosts: Set<String> = []
     private var attemptedMobileAlternateURLs: Set<String> = []
@@ -68,6 +70,11 @@ final class VideoWebPlayerCoordinator: NSObject, ObservableObject {
     /// `WKWebViewHTMLLoader.applyUserAgent`，设计书 23.13）。播放器的 WKWebView 由 WebUI 创建、
     /// App 拿不到实例，所以在这里记下要设的值，等首个主框架导航策略回调拿到 webView 再设。
     private(set) var declaredUserAgent: String?
+
+    /// 中文注释：首个导航策略回调里记下 WebUI 创建的 WKWebView，供释放时脱钩代理。
+    func attachForDelegateDetaching(_ webView: WKWebView) {
+        self.delegateDetacher.attach(webView)
+    }
 
     init(
         request: VideoWebPlayerRequest,

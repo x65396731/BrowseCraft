@@ -7,6 +7,7 @@ extension VideoWebPlayerCoordinator: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         preferences: WKWebpagePreferences
     ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+        self.attachForDelegateDetaching(webView)
         preferences.preferredContentMode = .mobile
         guard let scheme: String = navigationAction.request.url?.scheme?.lowercased() else {
             return (.cancel, preferences)

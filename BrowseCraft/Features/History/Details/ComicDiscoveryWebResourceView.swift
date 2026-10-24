@@ -88,6 +88,8 @@ struct ComicDiscoveryWebResourceView: View {
 @MainActor
 private final class ComicDiscoveryWebResourceCoordinator: NSObject, ObservableObject, WKUIDelegate, WKNavigationDelegate {
     let configuration: WKWebViewConfiguration
+    /// 中文注释：协调器先于 WebUI 创建的 WKWebView 释放时把代理置空，见 `WebViewDelegateDetacher`。
+    private let delegateDetacher: WebViewDelegateDetacher = WebViewDelegateDetacher()
 
     override init() {
         let configuration: WKWebViewConfiguration = WKWebViewConfiguration()
@@ -96,6 +98,10 @@ private final class ComicDiscoveryWebResourceCoordinator: NSObject, ObservableOb
         self.configuration = configuration
 
         super.init()
+    }
+
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation?) {
+        self.delegateDetacher.attach(webView)
     }
 
     func webView(
