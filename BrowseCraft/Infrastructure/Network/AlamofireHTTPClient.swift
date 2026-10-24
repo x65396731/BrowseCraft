@@ -76,6 +76,8 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         do {
             dataResponse = try await self.performDataRequest(urlRequest)
             html = self.string(from: dataResponse.data, request: requestConfig, response: dataResponse.response)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
@@ -120,6 +122,8 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
         let dataResponse: HTTPDataResponse
         do {
             dataResponse = try await self.performDataRequest(urlRequest)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw RuleExecutionError.network(
                 url: url.absoluteString,
@@ -181,13 +185,16 @@ final class AlamofireHTTPClient: PageContentLoader, PageDataLoader {
             return response
         } catch {
             // 中文注释：调用方取消（离开页面、目录添加点了取消或超时）不是请求失败，只记 info。
+            // 抛 `CancellationError`、不抛 Alamofire 的 explicitlyCancelled：上面两处会把其余错误包成
+            // `RuleExecutionError.network`，库页接不住取消，就把「Request explicitly cancelled.」当网络失败显示
+            // （2026-10-24 问题报告 R-UHEE-SAMK）。运行时的 `RuntimeStageLog` 也只认 `CancellationError` 记 stage-cancelled。
             if Task.isCancelled {
                 AppLog.info(.network, "request-cancelled", [
                     "method": .code(urlRequest.httpMethod ?? "GET"),
                     "host": .host(urlRequest.url),
                     "ms": .duration(clock.now - startedAt)
                 ])
-                throw error
+                throw CancellationError()
             }
             AppLog.error(.network, "request-failed", [
                 "method": .code(urlRequest.httpMethod ?? "GET"),

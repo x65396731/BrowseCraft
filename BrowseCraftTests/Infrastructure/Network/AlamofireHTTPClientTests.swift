@@ -66,4 +66,32 @@ struct AlamofireHTTPClientTests {
         #expect(AlamofireHTTPClient.contentFailure(statusCode: 304, html: page, url: url) == nil)
         #expect(AlamofireHTTPClient.contentFailure(statusCode: nil, html: page, url: url) == nil)
     }
+
+    // 中文注释：调用方取消要原样抛 `CancellationError`，不能包成 `RuleExecutionError.network`——
+    // 否则库页把「Request explicitly cancelled.」当网络失败显示（2026-10-24 问题报告 R-UHEE-SAMK）。
+    @Test func cancelledContentLoadThrowsCancellationNotNetworkFailure() async throws {
+        let client: AlamofireHTTPClient = AlamofireHTTPClient()
+        let url: URL = try #require(URL(string: "https://example.test/list"))
+        let task: Task<PageContentResponse, any Error> = Task {
+            try await client.loadContent(PageLoadRequest(url: url, requestConfig: nil, sourceContext: nil))
+        }
+        task.cancel()
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await task.value
+        }
+    }
+
+    @Test func cancelledDataLoadThrowsCancellationNotNetworkFailure() async throws {
+        let client: AlamofireHTTPClient = AlamofireHTTPClient()
+        let url: URL = try #require(URL(string: "https://example.test/feed.json"))
+        let task: Task<PageDataResponse, any Error> = Task {
+            try await client.loadData(PageLoadRequest(url: url, requestConfig: nil, sourceContext: nil))
+        }
+        task.cancel()
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await task.value
+        }
+    }
 }

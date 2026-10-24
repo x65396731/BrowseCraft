@@ -86,8 +86,14 @@ struct LibraryView: View {
             // 中文注释：顶部拉动刷新当前 tab 的第 1 页。切 tab 不再自动重取之后
             // （取过就一直沿用，不设过期时间），这是用户要新内容的唯一入口。
             // 与底部的触底加载下一页互不相干：那条路走 `loadNextPageIfNeeded`，这条走 replace。
+            // 下拉的任务会被系统取消：刷新一开始改了 `isRefreshing` 等状态，本页重绘时下拉控件更新配置
+            // （`PlatformRefreshControlProxy.configuration.didSet`）顺手取消在途任务，请求十几毫秒就断
+            // （2026-10-24 问题报告 R-UHEE-SAMK / R-A6KF-ZASK，模拟器取消回调里抓到的调用栈）。
+            // 与云同步页同一做法：放进独立任务里跑，下拉只等它结束；过时结果由 `refreshToken` 作废。
             .refreshable {
-                await self.viewModel.refreshSelectedListTab()
+                await Task {
+                    await self.viewModel.refreshSelectedListTab()
+                }.value
             }
             .background(CatalogPalette.pageBackground)
             .disabled(self.isInteractionLocked)

@@ -83,6 +83,32 @@ struct LibraryViewModelTests {
         #expect(viewModel.selectedSourceID == source.id)
     }
 
+    // 中文注释：刷新被取消（HTTP 客户端抛 `CancellationError`）不是失败：不出失败横幅，已显示的列表留着
+    // （2026-10-24 问题报告 R-UHEE-SAMK：取消被包成网络错误后显示了「Request explicitly cancelled.」）。
+    @Test func cancelledRefreshKeepsTheListWithoutAnError() async throws {
+        let database: AppDatabase = try Harness.makeDatabase()
+        let source: Source = try Harness.makeComicSource()
+        try GRDBSourceRepository(database: database).saveSource(source)
+        let runtime: ScriptedSourceRuntime = ScriptedSourceRuntime(source: source, list: { _ in
+            ScriptedSourceRuntime.listOutput(ids: ["a", "b"])
+        })
+        let viewModel: LibraryViewModel = Harness.makeLibraryViewModel(
+            database: database,
+            resolver: Harness.resolver([source.id: runtime])
+        )
+        #expect(await viewModel.loadIfNeeded() == .loaded)
+
+        runtime.setListHandler { _ in
+            throw CancellationError()
+        }
+        let outcome: LibraryInitialLoadOutcome = await viewModel.refreshSelectedListTab()
+
+        #expect(outcome == .cancelled)
+        #expect(viewModel.items.map(\.id) == ["a", "b"])
+        #expect(viewModel.selectedListTabErrorMessage == nil)
+        #expect(viewModel.isRefreshing == false)
+    }
+
     @Test func loadIfNeededSharesASingleOutcome() async throws {
         let database: AppDatabase = try Harness.makeDatabase()
         let source: Source = try Harness.makeComicSource()
