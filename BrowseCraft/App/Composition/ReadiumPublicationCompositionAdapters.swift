@@ -20,3 +20,31 @@ struct ReadiumSitePublicationBuilderAdapter: SiteReadiumPublicationBuilding {
         return self.builder.build(manifest: manifest, contentProvider: contentProvider, audioFailureHandler: audioFailureHandler)
     }
 }
+
+/// 中文注释：书类 HLS 有声播放内核（fwq 设计稿第 83 节）：Infrastructure 的 `SiteHLSAudioPlayer` 与阅读器的接口同名同形，
+/// 符合性与建内核的端口都挂在这里。
+extension SiteHLSAudioPlayer: AudiobookPlaybackEngine {}
+
+struct SiteHLSAudioEngineBuilderAdapter: SiteHLSAudioEngineBuilding {
+    func makeEngine(
+        publication: Publication,
+        manifest: BookPublicationManifest,
+        contentProvider: @escaping BookChapterContentProvider,
+        initialLocation: Locator?,
+        speed: Double,
+        failureHandler: BookAudioResourceFailureHandler?,
+        callbacks: AudiobookPlaybackCallbacks
+    ) -> any AudiobookPlaybackEngine {
+        return SiteHLSAudioPlayer(
+            publication: publication,
+            items: manifest.items,
+            initialLocation: initialLocation,
+            speed: speed,
+            resolve: SiteHLSAudioPlayer.audioResolver(manifest: manifest, contentProvider: contentProvider),
+            failureHandler: failureHandler,
+            onPlaybackChange: callbacks.onPlaybackChange,
+            onLocationChange: callbacks.onLocationChange,
+            onResourceFinished: callbacks.onResourceFinished
+        )
+    }
+}

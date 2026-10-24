@@ -12,6 +12,7 @@
 （fwq `APP-MEMO-043`）；有声书一打开就按文字书「进一章 +50」记广告分，音频还没加载就可能弹广告。
 
 Readium 只给引擎：`AudioNavigator`（播放、拖动、换集、倍速、音频会话）、`NowPlayingInfo`；播放页、顶栏与 sheet 全是本项目的 SwiftUI，可以整页重做。
+音频是 HLS 时引擎换成 App 自己的 `SiteHLSAudioPlayer`（[读书 kind App 侧接线](Book-Kind-Wiring-Design.md) 第十六节），播放页只认两者共同的 `AudiobookPlaybackEngine`，本文各节不分叉。
 
 ## 二、规则与引擎实际给什么数据
 

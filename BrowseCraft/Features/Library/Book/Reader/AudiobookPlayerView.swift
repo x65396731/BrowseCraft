@@ -4,8 +4,8 @@ import Nuke
 import SwiftUI
 import UIKit
 
-// 中文注释：有声书播放页（docs/design/Audiobook-Player-Page-Redesign-Design.md）。播放内核是 Readium `AudioNavigator`，
-// 本视图不持有播放状态；界面全是自绘：沉浸深色 + 封面取色流动背景、毛玻璃返回与目录、方形封面、眉行「第 N / M 集」、
+// 中文注释：有声书播放页（docs/design/Audiobook-Player-Page-Redesign-Design.md）。播放内核是 `AudiobookPlaybackEngine`（Readium `AudioNavigator`，
+// HLS 音频为 `SiteHLSAudioPlayer`），// 本视图不持有播放状态；界面全是自绘：沉浸深色 + 封面取色流动背景、毛玻璃返回与目录、方形封面、眉行「第 N / M 集」、
 // 集名与书名、进度条、五键主控件、倍速胶囊。单集取不到时进度条位置换成一行横条（fwq `APP-MEMO-043`）。
 // 整页深色只对本页局部设（`.environment(\.colorScheme, .dark)`），不用 `preferredColorScheme`——推入页上用它会把整个窗口一起变深。
 
@@ -49,7 +49,7 @@ struct AudiobookPlayerView: View {
                             duration: self.viewModel.displayedAudioPlayback.duration,
                             isEnabled: self.isSeekable,
                             seekAction: { time in
-                                Task { await self.viewModel.audioNavigator?.seek(to: time) }
+                                Task { await self.viewModel.audioEngine?.seek(to: time) }
                             }
                         )
                     }
@@ -196,7 +196,7 @@ struct AudiobookPlayerView: View {
                 label: NSLocalizedString("audiobook_player_skip_back", comment: "读屏：后退 10 秒"),
                 isEnabled: self.isFailed == false
             ) {
-                Task { await self.viewModel.audioNavigator?.seek(by: -10) }
+                Task { await self.viewModel.audioEngine?.seek(by: -10) }
             }
             Spacer(minLength: 0)
             AudiobookControlButton(
@@ -225,7 +225,7 @@ struct AudiobookPlayerView: View {
                 label: NSLocalizedString("audiobook_player_skip_forward", comment: "读屏：前进 30 秒"),
                 isEnabled: self.isFailed == false
             ) {
-                Task { await self.viewModel.audioNavigator?.seek(by: 30) }
+                Task { await self.viewModel.audioEngine?.seek(by: 30) }
             }
         }
         .padding(.horizontal, 6)
@@ -234,7 +234,7 @@ struct AudiobookPlayerView: View {
     /// 中文注释：72pt 白色实心圆、图形取背景底色（青绿在不同封面色上会撞色）；单集失败时变灰不可点；加载中圆内转圈、仍可点。
     private var playButton: some View {
         Button {
-            self.viewModel.audioNavigator?.playPause()
+            self.viewModel.audioEngine?.playPause()
         } label: {
             ZStack {
                 Circle()

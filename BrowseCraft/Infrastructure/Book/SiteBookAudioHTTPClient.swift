@@ -97,7 +97,7 @@ final class SiteBookAudioHTTPClient: DefaultHTTPClientDelegate, @unchecked Senda
         return .unavailable
     }
 
-    private static func statusCode(of error: Error) -> Int? {
+    static func statusCode(of error: Error) -> Int? {
         if case HTTPError.errorResponse(let response) = error {
             return response.status.rawValue
         }

@@ -117,7 +117,8 @@ struct BookFeatureFactory {
                 videoRepository: GRDBVideoWatchHistoryRepository(database: self.database),
                 appUserRepository: GRDBAppUserRepository(database: self.database),
                 activeAppUser: self.activeAppUser
-            )
+            ),
+            hlsAudioEngineBuilder: SiteHLSAudioEngineBuilderAdapter()
         )
     }
 }

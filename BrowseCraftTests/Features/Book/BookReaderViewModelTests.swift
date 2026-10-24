@@ -117,7 +117,7 @@ struct BookReaderViewModelTests {
 
         #expect(viewModel.state == .ready)
         #expect(viewModel.isAudiobook)
-        #expect(viewModel.audioNavigator != nil)
+        #expect(viewModel.audioEngine is AudioNavigator, "mp3 有声书仍走 Readium AudioNavigator")
         #expect(viewModel.publication?.readingOrder.count == 17)
         #expect(viewModel.tableOfContents.count == 17)
         #expect(viewModel.initialLocator == nil, "没点具体章节、没有续听位置时从头开始")

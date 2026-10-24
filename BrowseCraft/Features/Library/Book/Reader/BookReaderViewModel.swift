@@ -66,13 +66,19 @@ final class BookReaderViewModel {
     /// 中文注释：站点书加载出版物后的标题，与详情页同一条规则 `SiteBookTitle`：列表标题与 manifest 标题一个包含另一个时取较短的
     ///（biquhua 列表「[玄幻]普罗之主」→ 取详情「普罗之主」；sfacg 详情「大傩目录列表 - 小说频道 - SF轻小说」→ 取列表「大傩」）。
     private(set) var loadedTitle: String?
-    /// 中文注释：有声作品：Readium AudioNavigator 负责播放、seek、章节切换与 Locator；界面只是它的壳。
-    private(set) var audioNavigator: AudioNavigator?
+    /// 中文注释：有声作品的播放内核：负责播放、seek、章节切换与 Locator；界面只是它的壳。一般是 Readium `AudioNavigator`，
+    /// 音频是 HLS 时是 App 自己的 `SiteHLSAudioPlayer`（fwq 设计稿第 83 节）。
+    private(set) var audioEngine: (any AudiobookPlaybackEngine)?
     private(set) var audioPlayback: MediaPlaybackInfo = MediaPlaybackInfo()
     private(set) var coverURL: URL?
     /// 中文注释：站点书的章节表，写阅读历史时把位置 href 对回章节标题与地址。
     private var siteManifest: BookPublicationManifest?
     private var audioBridge: AudioNavigatorBridge?
+    /// 中文注释：建 HLS 有声播放内核的端口（装配根注入）；nil 时 HLS 有声书也交给 Readium。
+    private let hlsAudioEngineBuilder: (any SiteHLSAudioEngineBuilding)?
+    /// 中文注释：本书是 HLS 有声书且注入了端口时，建内核与重试用的取页闭包；否则为 nil。
+    private var hlsContentProvider: BookChapterContentProvider?
+    private var audioFailureHandler: BookAudioResourceFailureHandler?
     private var remoteControls: AudiobookRemoteControls?
     /// 中文注释：单集取不到（`APP-MEMO-043`）：本次打开里按集序号记哪几集取不到；当前集在里面时播放页显示横条。
     /// 已失效（gone）不会被之后的暂时性失败（unavailable）盖掉。
@@ -88,7 +94,7 @@ final class BookReaderViewModel {
     private var requestedAudioChapterIndex: Int?
 
     var isAudiobook: Bool {
-        return self.audioNavigator != nil
+        return self.audioEngine != nil
     }
 
     /// 中文注释：站点书的选择；本地书为 nil。日志字段取来源 id 用。
@@ -120,6 +126,7 @@ final class BookReaderViewModel {
         removeBookmarkUseCase: RemoveBookBookmarkUseCase,
         saveHistoryUseCase: SaveBookReadingHistoryUseCase? = nil,
         adPoints: ReadingActivityPersistenceCoordinator? = nil,
+        hlsAudioEngineBuilder: (any SiteHLSAudioEngineBuilding)? = nil,
         throttleNanoseconds: UInt64 = 1_000_000_000
     ) {
         self.subject = subject
@@ -136,6 +143,7 @@ final class BookReaderViewModel {
         self.saveProgressUseCase = saveProgressUseCase
         self.saveHistoryUseCase = saveHistoryUseCase
         self.adPoints = adPoints
+        self.hlsAudioEngineBuilder = hlsAudioEngineBuilder
         self.throttleNanoseconds = throttleNanoseconds
     }
 
@@ -225,7 +233,7 @@ final class BookReaderViewModel {
         self.currentLocator = self.initialLocator
     }
 
-    /// 中文注释：站点书——详情 → manifest → Readium 出版物；起点优先续读位置，其次点开的章节，最后第一章；有声作品随后在 `load()` 里建 `AudioNavigator`。
+    /// 中文注释：站点书——详情 → manifest → Readium 出版物；起点优先续读位置，其次点开的章节，最后第一章；有声作品随后建播放内核。
     private func openSite(_ selection: SiteBookChapterSelection) async throws {
         guard let loadSitePublicationUseCase: LoadBookPublicationUseCase = self.loadSitePublicationUseCase,
               let detailURL: URL = URL(string: selection.item.detailURL) else {
@@ -238,14 +246,16 @@ final class BookReaderViewModel {
         }
         self.coverURL = loaded.manifest.coverURL
         self.siteManifest = loaded.manifest
+        let audioFailureHandler: BookAudioResourceFailureHandler = { [weak self] failure in
+            Task { @MainActor in
+                self?.audioResourceDidFail(failure)
+            }
+        }
+        self.audioFailureHandler = audioFailureHandler
         let publication: Publication = self.sitePublicationBuilder.build(
             manifest: loaded.manifest,
             contentProvider: loaded.contentProvider,
-            audioFailureHandler: { [weak self] failure in
-                Task { @MainActor in
-                    self?.audioResourceDidFail(failure)
-                }
-            }
+            audioFailureHandler: audioFailureHandler
         )
         self.publication = publication
         let saved: Locator? = try await self.persistence.readingProgress(bookID: self.bookID, userID: self.userID)
@@ -257,26 +267,57 @@ final class BookReaderViewModel {
         self.initialLocator = chapterLocator ?? saved
         self.currentLocator = self.initialLocator
         if loaded.manifest.isAudiobook {
-            // 中文注释：有声作品不走 EPUB Navigator——播放内核用 Readium 的 AudioNavigator（AVPlayer + Locator），
+            // 中文注释：有声作品不走 EPUB Navigator——播放内核默认用 Readium 的 AudioNavigator（AVPlayer + Locator）；
+            // 音频是 HLS 时用 App 自己的 HLS 内核（Readium 播不了 HLS 切片，fwq 设计稿第 83 节）。
             // 位置回调与文字书同一条进度 / 书签链路；播放由视图出现时触发（`startAudioPlayback`）。
-            let navigator: AudioNavigator = AudioNavigator(publication: publication, initialLocation: self.initialLocator)
-            let bridge: AudioNavigatorBridge = AudioNavigatorBridge(
-                onPlaybackChange: { [weak self] info in
-                    self?.audioPlaybackDidChange(info)
-                },
-                onLocationChange: { [weak self] locator in
-                    self?.navigatorDidChangeLocation(locator)
-                },
-                onResourceFinished: { [weak self] info in
-                    self?.audioResourceDidFinish(info)
-                }
-            )
-            navigator.delegate = bridge
-            navigator.submitPreferences(AudioPreferences(speed: self.playbackSpeed.rawValue))
-            self.audioBridge = bridge
-            self.audioNavigator = navigator
-            self.navigatorProxy.navigator = navigator
+            if loaded.manifest.isHLSAudiobook, self.hlsAudioEngineBuilder != nil {
+                self.hlsContentProvider = loaded.contentProvider
+            } else {
+                self.audioBridge = AudioNavigatorBridge(callbacks: self.audioPlaybackCallbacks)
+            }
+            self.installAudioEngine(self.makeAudioEngine(publication: publication, initialLocation: self.initialLocator))
         }
+    }
+
+    private var audioPlaybackCallbacks: AudiobookPlaybackCallbacks {
+        return AudiobookPlaybackCallbacks(
+            onPlaybackChange: { [weak self] info in
+                self?.audioPlaybackDidChange(info)
+            },
+            onLocationChange: { [weak self] locator in
+                self?.navigatorDidChangeLocation(locator)
+            },
+            onResourceFinished: { [weak self] info in
+                self?.audioResourceDidFinish(info)
+            }
+        )
+    }
+
+    /// 中文注释：建一个播放内核（打开时与单集重试共用）：HLS 有声书用 `SiteHLSAudioPlayer`，其余用 Readium `AudioNavigator`。
+    private func makeAudioEngine(publication: Publication, initialLocation: Locator?) -> any AudiobookPlaybackEngine {
+        if let builder: any SiteHLSAudioEngineBuilding = self.hlsAudioEngineBuilder,
+           let contentProvider: BookChapterContentProvider = self.hlsContentProvider,
+           let manifest: BookPublicationManifest = self.siteManifest {
+            return builder.makeEngine(
+                publication: publication,
+                manifest: manifest,
+                contentProvider: contentProvider,
+                initialLocation: initialLocation,
+                speed: self.playbackSpeed.rawValue,
+                failureHandler: self.audioFailureHandler,
+                callbacks: self.audioPlaybackCallbacks
+            )
+        }
+        let navigator: AudioNavigator = AudioNavigator(publication: publication, initialLocation: initialLocation)
+        navigator.delegate = self.audioBridge
+        navigator.submitPreferences(AudioPreferences(speed: self.playbackSpeed.rawValue))
+        return navigator
+    }
+
+    private func installAudioEngine(_ engine: any AudiobookPlaybackEngine) {
+        self.audioEngine = engine
+        self.navigatorProxy.audioEngine = engine
+        self.navigatorProxy.navigator = engine as? AudioNavigator
     }
 
     private static func mediaType(for item: BookPublicationItem) -> MediaType {
@@ -292,13 +333,13 @@ final class BookReaderViewModel {
 
     /// 中文注释：播放页出现时开始播放并挂锁屏 / 耳机控制；离开时暂停、卸下控制并落一次进度。
     func startAudioPlayback() {
-        guard let navigator: AudioNavigator = self.audioNavigator, let publication: Publication = self.publication else {
+        guard let engine: any AudiobookPlaybackEngine = self.audioEngine, let publication: Publication = self.publication else {
             return
         }
         if self.remoteControls == nil {
-            self.attachRemoteControls(navigator: navigator, publication: publication)
+            self.attachRemoteControls(engine: engine, publication: publication)
         }
-        navigator.play()
+        engine.play()
         if self.didReportAudioPlaybackStarted == false, case .site(let selection) = self.subject {
             self.didReportAudioPlaybackStarted = true
             AppLog.info(.playback, "audio-player-started", [
@@ -361,9 +402,9 @@ final class BookReaderViewModel {
         }
     }
 
-    private func attachRemoteControls(navigator: AudioNavigator, publication: Publication) {
+    private func attachRemoteControls(engine: any AudiobookPlaybackEngine, publication: Publication) {
         let controls: AudiobookRemoteControls = AudiobookRemoteControls(
-            navigator: navigator,
+            engine: engine,
             title: self.title,
             chapterCount: publication.readingOrder.count,
             artwork: self.audioArtwork
@@ -373,13 +414,13 @@ final class BookReaderViewModel {
     }
 
     func stopAudioPlayback() {
-        self.audioNavigator?.pause()
+        self.audioEngine?.pause()
         self.remoteControls?.detach()
         self.remoteControls = nil
         self.flush()
     }
 
-    /// 中文注释：当前集的序号（从 0 起，AudioNavigator 报的资源序号）与总集数，播放页眉行「第 N / M 集」用。
+    /// 中文注释：当前集的序号（从 0 起，播放内核报的资源序号）与总集数，播放页眉行「第 N / M 集」用。
     var audioChapterIndex: Int {
         return self.requestedAudioChapterIndex ?? self.audioPlayback.resourceIndex
     }
@@ -424,7 +465,7 @@ final class BookReaderViewModel {
         return self.audioChapterIndex + 1 < self.audioChapterCount
     }
 
-    /// 中文注释：当前正在播的章节标题（AudioNavigator 报的资源序号对应 readingOrder）。
+    /// 中文注释：当前正在播的章节标题（播放内核报的资源序号对应 readingOrder）。
     var audioChapterTitle: String? {
         guard let publication: Publication = self.publication else {
             return nil
@@ -622,7 +663,7 @@ final class BookReaderViewModel {
         self.accumulateAdPoints(AdPointRule.bookChapterPoints, trigger: .book, using: adPoints)
     }
 
-    /// 中文注释：AudioNavigator 报来的播放状态：更新界面与锁屏控制，并累计广告积分。
+    /// 中文注释：播放内核报来的播放状态：更新界面与锁屏控制，并累计广告积分。
     func audioPlaybackDidChange(_ info: MediaPlaybackInfo) {
         // 中文注释：引擎按时间步频繁回调；只在集序号或播放状态真的变了时记 info，进度本身不记。
         let previous: MediaPlaybackInfo = self.audioPlayback
@@ -654,7 +695,7 @@ final class BookReaderViewModel {
         self.accumulateAudioPlayedInterval(info)
     }
 
-    /// 中文注释：AudioNavigator 播完一个章节要接下一章时回调；播完的是最后一章即整本播完。
+    /// 中文注释：播放内核播完一个章节要接下一章时回调；播完的是最后一章即整本播完。
     func audioResourceDidFinish(_ info: MediaPlaybackInfo) {
         guard let publication: Publication = self.publication,
               info.resourceIndex >= publication.readingOrder.count - 1 else {
@@ -682,7 +723,7 @@ final class BookReaderViewModel {
             "host": .host(failure.chapterURL)
         ])
         if index == self.audioChapterIndex {
-            self.audioNavigator?.pause()
+            self.audioEngine?.pause()
         }
     }
 
@@ -708,30 +749,27 @@ final class BookReaderViewModel {
 
     /// 中文注释：横条上的「重试」：清掉这一集的失败记录，从这一集开头重新取。
     /// Readium 的媒体加载器按集缓存资源、HTTP 资源又缓存第一次的请求结果（连失败一起），同一个 AudioNavigator 里切回这一集
-    /// 不会再发请求（2026-10-20 模拟器走查）；所以重试时为这一集新建一个 AudioNavigator，接上同一个代理桥、倍速与锁屏控制。
+    /// 不会再发请求（2026-10-20 模拟器走查）；所以重试时为这一集新建一个播放内核，接上同一组回调、倍速与锁屏控制。
+    /// HLS 内核没有这层缓存，同样新建一个，两种内核走同一条路。
     func retryCurrentAudioChapter() async {
         let index: Int = self.audioChapterIndex
-        guard let previous: AudioNavigator = self.audioNavigator,
+        guard let previous: any AudiobookPlaybackEngine = self.audioEngine,
               let publication: Publication = self.publication,
-              let bridge: AudioNavigatorBridge = self.audioBridge,
               publication.readingOrder.indices.contains(index) else {
             return
         }
         self.audioChapterFailures[index] = nil
         AppLog.info(.playback, "audio-chapter-retry", ["book": .id(self.bookID), "index": .int(index)])
-        previous.pause()
+        previous.close()
         let locator: Locator? = await publication.locate(publication.readingOrder[index])
-        let navigator: AudioNavigator = AudioNavigator(publication: publication, initialLocation: locator)
-        navigator.delegate = bridge
-        navigator.submitPreferences(AudioPreferences(speed: self.playbackSpeed.rawValue))
-        self.audioNavigator = navigator
-        self.navigatorProxy.navigator = navigator
+        let engine: any AudiobookPlaybackEngine = self.makeAudioEngine(publication: publication, initialLocation: locator)
+        self.installAudioEngine(engine)
         self.requestedAudioChapterIndex = index
         if let controls: AudiobookRemoteControls = self.remoteControls {
             controls.detach()
-            self.attachRemoteControls(navigator: navigator, publication: publication)
+            self.attachRemoteControls(engine: engine, publication: publication)
         }
-        navigator.play()
+        engine.play()
     }
 
     /// 中文注释：横条上的「下一集」与主控件的下一集同一个动作。
@@ -751,7 +789,7 @@ final class BookReaderViewModel {
 
     /// 中文注释：从某一集开头播（目录 sheet 点一集、上下集、重试）。先记下请求的集序号再交给引擎，页面立刻跟上。
     func playAudioChapter(at index: Int) async {
-        guard let navigator: AudioNavigator = self.audioNavigator,
+        guard let engine: any AudiobookPlaybackEngine = self.audioEngine,
               let publication: Publication = self.publication,
               publication.readingOrder.indices.contains(index) else {
             return
@@ -763,15 +801,15 @@ final class BookReaderViewModel {
             "index": .int(index),
             "count": .int(publication.readingOrder.count)
         ])
-        _ = await navigator.go(to: publication.readingOrder[index])
-        navigator.play()
+        await engine.jump(to: publication.readingOrder[index])
+        engine.play()
     }
 
     /// 中文注释：选倍速：记到全局，立即交给引擎（暂停中也生效，下次播放按它的速度）。
     func setPlaybackSpeed(_ speed: AudiobookPlaybackSpeed) {
         self.playbackSpeed = speed
         speed.store()
-        self.audioNavigator?.submitPreferences(AudioPreferences(speed: speed.rawValue))
+        self.audioEngine?.setSpeed(speed.rawValue)
         self.remoteControls?.update(info: self.audioPlayback)
     }
 
@@ -797,7 +835,7 @@ final class BookReaderViewModel {
         self.audioPlayedDuration += step
     }
 
-    /// 中文注释：有声书只计实际播放：按 AudioNavigator 上报的时间差累计，暂停不动；换章 / 拖动的大跳变不计。
+    /// 中文注释：有声书只计实际播放：按播放内核上报的时间差累计，暂停不动；换章 / 拖动的大跳变不计。
     private func accumulateAudioPlayedInterval(_ info: MediaPlaybackInfo) {
         guard let adPoints: ReadingActivityPersistenceCoordinator = self.adPoints else {
             return
@@ -834,7 +872,7 @@ final class BookReaderViewModel {
                 }
                 AppAnalytics.shared.logAdPointsThreshold(trigger: trigger)
                 // 中文注释：有声书积分只在播放中累计，触发时一定在播；广告结束后 `markAdPlaybackHandled` 继续播。
-                self.audioNavigator?.pause()
+                self.audioEngine?.pause()
                 self.shouldPlayAd = true
             } catch {
                 AppLog.error(.sync, "book-ad-points-save-failed", ["error": .error(error)])
@@ -845,7 +883,7 @@ final class BookReaderViewModel {
     /// 中文注释：广告播过（看完 / 提前关闭）才清零积分；没播出来积分保留、下个计分点再试（30.8）。有声书恢复播放。
     func markAdPlaybackHandled(outcome: RewardedAdPlaybackOutcome) {
         self.shouldPlayAd = false
-        self.audioNavigator?.play()
+        self.audioEngine?.play()
         guard outcome.consumesAdPoints, let adPoints: ReadingActivityPersistenceCoordinator = self.adPoints else {
             return
         }
@@ -901,6 +939,14 @@ final class AudioNavigatorBridge: NSObject, AudioNavigatorDelegate {
         self.onResourceFinished = onResourceFinished
     }
 
+    convenience init(callbacks: AudiobookPlaybackCallbacks) {
+        self.init(
+            onPlaybackChange: callbacks.onPlaybackChange,
+            onLocationChange: callbacks.onLocationChange,
+            onResourceFinished: callbacks.onResourceFinished
+        )
+    }
+
     func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
         self.onPlaybackChange(info)
     }
@@ -922,21 +968,23 @@ final class AudioNavigatorBridge: NSObject, AudioNavigatorDelegate {
 }
 
 /// 中文注释：Navigator 的弱引用代理；Representable 建好 Navigator 后挂上来，VM 通过它跳转。
+/// 有声书挂的是播放内核（HLS 内核不是 Readium Navigator），书签 / 目录跳转先找 Navigator，没有再交给播放内核。
 @MainActor
 final class BookNavigatorProxy {
     weak var navigator: (any Navigator)?
+    weak var audioEngine: (any AudiobookPlaybackEngine)?
 
     func go(to locator: Locator) async -> Bool {
-        guard let navigator: any Navigator = self.navigator else {
-            return false
+        if let navigator: any Navigator = self.navigator {
+            return await navigator.go(to: locator, options: NavigatorGoOptions(animated: true))
         }
-        return await navigator.go(to: locator, options: NavigatorGoOptions(animated: true))
+        return await self.audioEngine?.jump(to: locator) ?? false
     }
 
     func go(to link: Link) async -> Bool {
-        guard let navigator: any Navigator = self.navigator else {
-            return false
+        if let navigator: any Navigator = self.navigator {
+            return await navigator.go(to: link, options: NavigatorGoOptions(animated: true))
         }
-        return await navigator.go(to: link, options: NavigatorGoOptions(animated: true))
+        return await self.audioEngine?.jump(to: link) ?? false
     }
 }

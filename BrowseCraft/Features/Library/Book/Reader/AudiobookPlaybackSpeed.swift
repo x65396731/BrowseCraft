@@ -1,7 +1,7 @@
 import Foundation
 
 // 中文注释：有声书倍速（docs/design/Audiobook-Player-Page-Redesign-Design.md 裁定 6）：五档，全局记一个值，
-// 存 UserDefaults，不进数据库、不同步 iCloud。引擎是 Readium `AudioNavigator.submitPreferences(AudioPreferences(speed:))`。
+// 存 UserDefaults，不进数据库、不同步 iCloud。交给播放内核的 `setSpeed`（Readium 内核即 `submitPreferences(AudioPreferences(speed:))`）。
 
 enum AudiobookPlaybackSpeed: Double, CaseIterable, Identifiable, Sendable {
     case slower = 0.75

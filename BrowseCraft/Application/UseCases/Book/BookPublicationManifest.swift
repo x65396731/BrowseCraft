@@ -36,6 +36,19 @@ struct BookPublicationManifest: Hashable, Sendable {
     var isAudiobook: Bool {
         return self.items.contains { if case .audio = $0.kind { return true } else { return false } }
     }
+
+    /// 中文注释：音频章节全是 HLS（规则 `media.format = hls`，或章节地址扩展名 m3u8）——播放走 App 自己的 HLS 内核，
+    /// 不走 Readium（fwq 设计稿第 83 节）。读取规则的格式是整条规则一个值，按整本判。
+    var isHLSAudiobook: Bool {
+        var audioMediaTypes: [String?] = []
+        for item: BookPublicationItem in self.items {
+            if case .audio(let mediaType, _) = item.kind {
+                audioMediaTypes.append(mediaType)
+            }
+        }
+        return audioMediaTypes.isEmpty == false
+            && audioMediaTypes.allSatisfy { $0 == BookMediaFormat.hls.rwpmMediaType }
+    }
 }
 
 /// 中文注释：按需取一章内容的端口；Runtime 的 `loadBookContent` 在用例里被包成这个闭包。

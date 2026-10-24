@@ -4,20 +4,20 @@ import UIKit
 @preconcurrency import ReadiumNavigator
 @preconcurrency import ReadiumShared
 
-// 中文注释：锁屏 / 控制中心 / 耳机按键 → AudioNavigator；Now Playing 元数据由 Readium 自带的 NowPlayingInfo 写。
+// 中文注释：锁屏 / 控制中心 / 耳机按键 → 播放内核（Readium AudioNavigator 或 HLS 内核）；Now Playing 元数据由 Readium 自带的 NowPlayingInfo 写。
 // 照抄 Readium TestApp 的 AudiobookViewController 命令中心部分；attach / detach 成对，避免命令目标泄漏。
 
 @MainActor
 final class AudiobookRemoteControls {
-    private let navigator: AudioNavigator
+    private let engine: any AudiobookPlaybackEngine
     private let title: String
     private let chapterCount: Int
     /// 中文注释：锁屏封面（Audiobook-Player-Page-Redesign-Design.md 第七节）；播放页取到封面图后补上。
     private var artwork: UIImage?
     private var targets: [(MPRemoteCommand, Any)] = []
 
-    init(navigator: AudioNavigator, title: String, chapterCount: Int, artwork: UIImage? = nil) {
-        self.navigator = navigator
+    init(engine: any AudiobookPlaybackEngine, title: String, chapterCount: Int, artwork: UIImage? = nil) {
+        self.engine = engine
         self.title = title
         self.chapterCount = chapterCount
         self.artwork = artwork
@@ -29,8 +29,8 @@ final class AudiobookRemoteControls {
         self.on(center.playCommand) { navigator, _ in navigator.play() }
         self.on(center.pauseCommand) { navigator, _ in navigator.pause() }
         self.on(center.togglePlayPauseCommand) { navigator, _ in navigator.playPause() }
-        self.on(center.previousTrackCommand) { navigator, _ in Task { await navigator.goBackward() } }
-        self.on(center.nextTrackCommand) { navigator, _ in Task { await navigator.goForward() } }
+        self.on(center.previousTrackCommand) { navigator, _ in Task { await navigator.skipToPreviousResource() } }
+        self.on(center.nextTrackCommand) { navigator, _ in Task { await navigator.skipToNextResource() } }
         center.skipBackwardCommand.preferredIntervals = [10]
         self.on(center.skipBackwardCommand) { navigator, _ in Task { await navigator.seek(by: -10) } }
         center.skipForwardCommand.preferredIntervals = [30]
@@ -57,15 +57,15 @@ final class AudiobookRemoteControls {
     }
 
     func update(info: MediaPlaybackInfo) {
-        NowPlayingInfo.shared.playback = NowPlayingInfo.Playback(duration: info.duration, elapsedTime: info.time, rate: self.navigator.settings.speed)
+        NowPlayingInfo.shared.playback = NowPlayingInfo.Playback(duration: info.duration, elapsedTime: info.time, rate: self.engine.speed)
         NowPlayingInfo.shared.media?.chapterNumber = info.resourceIndex + 1
         let center: MPRemoteCommandCenter = MPRemoteCommandCenter.shared()
-        center.previousTrackCommand.isEnabled = self.navigator.canGoBackward
-        center.nextTrackCommand.isEnabled = self.navigator.canGoForward
+        center.previousTrackCommand.isEnabled = self.engine.canGoBackward
+        center.nextTrackCommand.isEnabled = self.engine.canGoForward
     }
 
-    private func on(_ command: MPRemoteCommand, _ block: @escaping @MainActor (AudioNavigator, MPRemoteCommandEvent) -> Void) {
-        let navigator: AudioNavigator = self.navigator
+    private func on(_ command: MPRemoteCommand, _ block: @escaping @MainActor (any AudiobookPlaybackEngine, MPRemoteCommandEvent) -> Void) {
+        let navigator: any AudiobookPlaybackEngine = self.engine
         let target: Any = command.addTarget { event in
             Task { @MainActor in
                 block(navigator, event)

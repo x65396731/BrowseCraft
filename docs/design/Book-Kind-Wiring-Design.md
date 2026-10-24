@@ -107,8 +107,18 @@ scripts/regenerate-project.sh && xcodebuild -project BrowseCraft.xcodeproj -sche
   在其 `willStartRequest` 里 http → https（`SiteBookAudioHTTPClient`；代理是弱引用，由正文容器持有）。
 - **顺带修的两处**：Runtime 列表第 1 页永远用页面自己的地址，不把 1 代进模板（loyalbooks `?page=1` 被站点 302 到 http）；
   详情页从阅读器 / 播放页退回时只重读续读位置、不重取详情（此前 manifest 已在就直接返回，「Continue Listening」出不来）。
-- **固定输入**：`BookReaderViewModelTests.openingSiteAudiobookBuildsAnAudioNavigator`、`BookSourceRuntimeEndToEndTests`（音频 href 有资源、第 1 页用入口地址）、
-  `SiteBookAudioHTTPClientTests`、`BookSiteDetailViewModelTests.returningToDetailRefreshesReadingProgressWithoutReloading`。
+- **HLS 音频另走 App 自己的内核**（fwq 设计稿第 83 节 / `APP-MEMO-047`，2026-10-24）：音频章节全是 HLS（规则 `media.format = hls` 或地址扩展名 m3u8，
+  `BookPublicationManifest.isHLSAudiobook`）时不建 `AudioNavigator`，建 `SiteHLSAudioPlayer`——Readium 的媒体加载器把章节地址改成自定义 scheme 交给 AVPlayer，
+  HLS 的相对切片按该地址解析后不是出版物链接、加载失败，绝对切片又绕过 `SiteBookAudioHTTPClient`、不带 Referer（otomekoe 的 m3u8 与切片不带同站 Referer 都 403）。
+  新内核直接用 https 地址建 `AVURLAsset`，请求头放 `AVURLAssetHTTPHeaderFieldsKey`（对播放列表与切片都生效，影视原生播放器的 KSPlayer 用同一个键），
+  请求头与 `SiteBookAudioHTTPClient` 同口径（规则的头、缺 Referer 时以章节页为 Referer），播放页型章节复用 `SiteBookPageAudioResolver`。
+  界面不分叉：VM、播放页、`AudiobookRemoteControls` 只认 `AudiobookPlaybackEngine`（Readium `AudioNavigator` 套适配、`SiteHLSAudioPlayer` 同名同形），
+  Locator 与 Readium 同形（`t=` 片段、集内 progression），续读、书签、历史、广告积分、单集失败横条照旧；协议与建内核的端口 `SiteHLSAudioEngineBuilding` 由阅读器声明，
+  符合性与适配器在装配根（与 `BookReaderPublicationPorts.swift` 同一种边界做法），不注入端口时 HLS 也交给 Readium。
+  两处实网探针才逮到的细节：已失败的播放项上 seek 永远不返回（失败项上跳过、新播放项从 0 开始不 seek）；403 不在错误日志里，
+  写在播放项错误（`NSURLErrorDomain -1102`）底层 `CoreMediaErrorDomain -12660` 的说明「HTTP 403: Forbidden」里，从那里读出状态码按 `APP-MEMO-043` 归「已失效」。
+- **固定输入**：`BookReaderViewModelTests.openingSiteAudiobookBuildsAnAudioNavigator`（mp3 仍走 Readium）、`BookSourceRuntimeEndToEndTests`（音频 href 有资源、第 1 页用入口地址）、
+  `SiteBookAudioHTTPClientTests`、`SiteHLSAudioPlayerTests`、`BookSiteDetailViewModelTests.returningToDetailRefreshesReadingProgressWithoutReloading`。
 
 ## 十七、`chapterListURL`：章节列表在从作品页单跳到达的目录页
 
