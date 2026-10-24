@@ -45,8 +45,18 @@
 
 - 改网址即清空结论与提交状态，回到只有网址卡 + 「检查网站」的状态（与现状相同）。
 - 任务客户端未接线时（只在测试替身下出现）主控件禁用并保留现有一句说明。Debug 演示模式（`-BrowseCraftDemoMode`）经 `SourceDiscoveryService` 的 `assessmentOverride` 跳过本机检查，网址直接通过。
-- **引导屏**：自绘大标题「怎样的页面能生成」，一句说明，顶部插画不动；「两条要求」做成两行卡片组（32pt 图标方块 + 标题 + 说明），组下一句提醒；
-  「例子」两行（✗ 警示橙 / ✓ 动作蓝）；「怎么找」三行带序号圆；底部蓝色主按钮「我找到了这样的页面」或「知道了」。首屏左上「取消」关掉整个流程，回看形态没有取消。
+- **引导屏**（v2，用户 2026-10-24 裁定六项全取 A；画布在 [新手引导设计稿](https://claude.ai/artifact/PeMDXENKHakku2SdMZjycK) 第四排，取值沿用
+  [Onboarding-Design.md](Onboarding-Design.md) 第八节的 `tour*` 一组，与新手引导的欢迎卡同一块语言）：它是走生成这条路的新用户必经的一屏，位置、文案、版本号与「首次必过」的判定都不动，只换皮。
+  系统导航栏隐藏，整页自绘：上半段 `brandWaitingFill` 墨青色块（右上 260pt `tourAccent` 32% 径向光圈），内含首屏形态左上「取消」（白 82%，`body`）、
+  只在从新手引导第 3 步走来的那一次显示的青绿眉行「新手引导 · 最后一步」（`caption2` bold 字距 1 + 12pt 倒三角；`OnboardingTourStore.cameFromTour` 在第 3 步点「用网址生成」时置位、
+  引导屏点按钮或关掉时清掉，`EntryPageGuideFlowView` 经环境读）、大标题 `title1` heavy 白、一句说明 `subheadline` 白 72%；
+  下面是反例插画卡（`tourIllustrationCard` 固定白底、圆角 20、高 176，插画 `EntryGuideUnsupportedPage` 高 150 不动，深色下白卡就是它的画框）；
+  「两条要求」「例子」「怎么找」三组卡片（分区标题 `footnote` bold 次级色；卡 `cardBackground` 圆角 20，深色加 1pt `onDarkFill` 描边；行内边距 14 / 16，行间细线从 68pt 起、序号行 54pt）：
+  要求行 40pt `brandWaitingFill` 圆 + 20pt `tourAccent` 线性图标 + 3pt `tourAccent` 22% 光环，标题 `subheadline` semibold，说明 `footnote` 次级色，组脚注一句提醒；
+  例子行 ✗ 40pt 圆（`warning` 字 + `warningFill` 底）、✓ 40pt 圆（书籍 `accent` 字 + `tourAccent` 16% 底）；步骤行 26pt `spectrumVividGradient` 圆白色序号。
+  主按钮固定在底部（`safeAreaInset`，底栏 `pageBackground` 90% + 毛玻璃，内容在它下面滚）：首屏形态 52 高 `spectrumVividGradient` 胶囊「我找到了这样的页面」+ 白箭头 + `tourPrimaryShadow`，
+  回看形态 50 高 `tourButtonFill` 胶囊「知道了」+ `tourAccent` 勾（深色反色）。首屏左上「取消」仍关掉整个流程，回看形态没有取消也没有眉行。
+  v1（2026-10-06）旧样：浅色页底自绘大标题 + 系统分组卡片（32pt 图标方块）+ 底部 `addAction` 蓝胶囊跟在内容末尾。
 
 ## 四、不改的东西
 
@@ -59,7 +69,7 @@
 ## 五、实现位置
 
 - `BrowseCraft/Features/Sources/AddSource/VideoGenerationInputView.swift`：整页重画，状态机不动。
-- `BrowseCraft/Features/Sources/AddSource/EntryPageGuideView.swift`：引导屏按第三节重画；`EntryPageGuideFlowView` 不动。
+- `BrowseCraft/Features/Sources/AddSource/EntryPageGuideView.swift`：引导屏按第三节重画（v2 沿用 `CatalogStyle` 的 `tour*` 取值，新增 `tourIllustrationCard`）；`EntryPageGuideFlowView` 只多读 `OnboardingTourStore.cameFromTour` 决定眉行、结束时清掉它。
 - `BrowseCraft/Features/Shared/StatusCardView.swift`：从云同步页抽出的状态卡，云同步页改为复用。
 - `BrowseCraft/Features/Shared/SpectrumGlowBorder.swift`：渐变发光描边，只给困难按钮。
 - `BrowseCraft/Features/Shared/DotMatrixTrack.swift`：流光点阵（`TimelineView` 驱动 `Canvas`），只给困难档滑动确认用。
