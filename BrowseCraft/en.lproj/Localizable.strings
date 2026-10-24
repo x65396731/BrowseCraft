@@ -42,6 +42,7 @@
 "entry_guide_dismiss_button" = "Got it";
 "entry_guide_reopen_link" = "What page works?";
 "entry_guide_open_from_failure" = "See what page works";
+"entry_guide_tour_eyebrow" = "Quick Tour · Last step";
 
 /* Video generation input preflight */
 "video_preflight_check_button" = "Check Website";

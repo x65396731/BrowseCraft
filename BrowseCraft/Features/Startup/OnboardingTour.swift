@@ -51,6 +51,9 @@ enum OnboardingPhase: Equatable {
 final class OnboardingTourStore {
     private(set) var phase: OnboardingPhase = .idle
     private(set) var entry: OnboardingEntry = .firstRun
+    /// 中文注释：第 3 步点「用网址生成」走出去时置位，合格入口页引导屏读到它才显示眉行「新手引导 · 最后一步」，
+    /// 引导屏点按钮或关掉时清掉（第五节；Generation-Input-Page-Redesign-Design.md 第三节「引导屏」）。
+    private(set) var cameFromTour: Bool = false
     @ObservationIgnored
     private let defaults: UserDefaults
     @ObservationIgnored
@@ -134,8 +137,14 @@ final class OnboardingTourStore {
         case .catalog:
             self.finishSourcesTour(.catalog, givesLibraryHint: true)
         case .generate:
+            self.cameFromTour = true
             self.finishSourcesTour(.generate, givesLibraryHint: true)
         }
+    }
+
+    /// 引导屏看过眉行了（点了按钮或关掉）：下次从输入页回看、或下次再添加来源都不再显示。
+    func clearCameFromTour() {
+        self.cameFromTour = false
     }
 
     /// 切到库标签（含添加来源后自动切过去）时调用：没看过库页那一步就等它登记第一张封面。

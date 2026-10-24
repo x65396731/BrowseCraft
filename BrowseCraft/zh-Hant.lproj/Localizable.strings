@@ -42,6 +42,7 @@
 "entry_guide_dismiss_button" = "知道了";
 "entry_guide_reopen_link" = "怎樣的頁面能生成？";
 "entry_guide_open_from_failure" = "看看怎樣的頁面能生成";
+"entry_guide_tour_eyebrow" = "新手引導 · 最後一步";
 
 /* Video generation input preflight */
 "video_preflight_check_button" = "檢查網站";

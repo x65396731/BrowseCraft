@@ -147,6 +147,9 @@ enum CatalogPalette {
     static var tourPrimaryShadow: Color {
         return Self.spectrumVividColors[1].opacity(0.38)
     }
+    /// 合格入口页引导屏的反例插画卡：固定白——插画 `EntryGuideUnsupportedPage` 本身白底，深色下白卡就是它的画框
+    /// （Generation-Input-Page-Redesign-Design.md 第三节「引导屏」）。
+    static let tourIllustrationCard: Color = Self.fixed(0xFFFFFF)
 
     // MARK: 有声书播放页（沉浸深色，不随系统；Audiobook-Player-Page-Redesign-Design.md 第八节）
     /// 主字、播放键底、进度已听部分、滑块：白。

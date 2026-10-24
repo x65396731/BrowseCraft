@@ -42,6 +42,7 @@
 "entry_guide_dismiss_button" = "わかりました";
 "entry_guide_reopen_link" = "生成できるページとは？";
 "entry_guide_open_from_failure" = "生成できるページを見る";
+"entry_guide_tour_eyebrow" = "はじめてガイド · 最後のステップ";
 
 /* Video generation input preflight */
 "video_preflight_check_button" = "サイトを確認";

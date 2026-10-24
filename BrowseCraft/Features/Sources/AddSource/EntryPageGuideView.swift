@@ -12,6 +12,10 @@ import SwiftUI
 // 它**不判定任何东西**：零网络、零登录、不改 `VideoGenerationInputPreflight.schemaVersion`。
 // 服务端已有的同源判定端点（`POST /v1/rule-generations/entry-page-qualification`）
 // 用户 2026-09-20 裁定不接线，本屏不改变那个决定。
+//
+// 2026-10-24 v2（Generation-Input-Page-Redesign-Design.md 第三节「引导屏」，用户六项裁定全取 A）：它是走生成这条路的
+// 新用户必经的一屏，按新手引导 v2 同一块语言重画（墨青色块上半段、三组卡片、主按钮固定底部），从新手引导第 3 步
+// 走来的那一次顶部多一行眉行；位置、文案、版本号与「首次必过」的判定不动。
 
 enum EntryPageGuide {
     /// 中文注释：读过的版本号存这里。文案实质改版时把 `currentVersion` +1，老用户再看一次；
@@ -47,112 +51,97 @@ struct EntryPageGuideView: View {
     let cancelAction: (() -> Void)?
     /// 中文注释：`generation_guide_finished` 的入口：首次必过的那屏传 `.firstRun`，其余回看入口用缺省的 `.help`。
     var analyticsEntry: GenerationGuideEntry = .help
+    /// 中文注释：从新手引导第 3 步走来的那一次才显示眉行「新手引导 · 最后一步」；回看形态永远没有。
+    var showsTourEyebrow: Bool = false
 
     /// 中文注释：本次显示是否已经报过结局；点按钮报过后，随之而来的 `onDisappear` 不再按「下滑关掉」补报取消。
     @State private var hasReportedFinish: Bool = false
 
-    // 中文注释：外观按 `docs/design/Generation-Input-Page-Redesign-Design.md` 第三节：自绘大标题、插画、
-    // 「两条要求」「例子」「怎么找」三组卡片行、底部蓝色主按钮；文案、版本号与「首次必过」的判定不动。
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
+
+    /// 首屏形态（带「取消」）：主按钮多彩渐变；回看形态：墨青实心。
+    private var isFirstRunForm: Bool {
+        return self.cancelAction != nil
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // 中文注释：回看形态没有左上「取消」，系统导航栏收成零高度，标题会贴到 sheet 顶边——
-                // 这时自己留出一段顶部空白（2026-10-07 用户指出上下间距太小）。
-                Text(NSLocalizedString("entry_guide_title", comment: ""))
-                    .font(.largeTitle.weight(.heavy))
-                    .accessibilityAddTraits(.isHeader)
+                self.hero
+                self.illustrationCard
                     .padding(.horizontal, 20)
-                    .padding(.top, self.cancelAction == nil ? 28 : 8)
-                Text(NSLocalizedString("entry_guide_subtitle", comment: ""))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                // 中文注释：引题图。她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码，
-                // 与下面「两条要求」说的是同一件事，所以它在最上面先把问题摆出来。
-                EmptyStateIconView(
-                    systemImage: "questionmark.circle",
-                    illustration: "EntryGuideUnsupportedPage",
-                    height: 150
-                )
-                .frame(maxWidth: .infinity)
-                .padding(.top, 24)
-                .padding(.bottom, 4)
+                    .padding(.top, 20)
 
-                SettingsCardGroup(
-                    title: NSLocalizedString("entry_guide_requirements_title", comment: ""),
-                    // 中文注释：`BC-PAGE-061` 全站直出拦的是作品页 / 阅读页里的额外接口与解密，
-                    // 用户在列表页上看不出来——先说一句，免得照着两条做了却被拒时觉得被骗。
-                    footer: NSLocalizedString("entry_guide_requirements_caveat", comment: "")
-                ) {
+                self.sectionTitle("entry_guide_requirements_title")
+                    .padding(.top, 22)
+                self.card {
                     self.requirementRow(
                         systemImage: "list.number",
                         titleKey: "entry_guide_rule_pagination_title",
                         detailKey: "entry_guide_rule_pagination_detail"
                     )
-                    SettingsRowSeparator()
+                    SettingsRowSeparator(leadingInset: 68)
                     self.requirementRow(
                         systemImage: "square.grid.2x2",
                         titleKey: "entry_guide_rule_single_list_title",
                         detailKey: "entry_guide_rule_single_list_detail"
                     )
                 }
+                // 中文注释：`BC-PAGE-061` 全站直出拦的是作品页 / 阅读页里的额外接口与解密，
+                // 用户在列表页上看不出来——先说一句，免得照着两条做了却被拒时觉得被骗。
+                Text(NSLocalizedString("entry_guide_requirements_caveat", comment: ""))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
 
-                SettingsCardGroup(title: NSLocalizedString("entry_guide_examples_title", comment: "")) {
+                self.sectionTitle("entry_guide_examples_title")
+                    .padding(.top, 22)
+                self.card {
                     self.exampleRow(
                         systemImage: "xmark",
                         tint: CatalogPalette.warning,
                         fill: CatalogPalette.warningFill,
                         textKey: "entry_guide_example_bad"
                     )
-                    SettingsRowSeparator()
+                    SettingsRowSeparator(leadingInset: 68)
                     self.exampleRow(
                         systemImage: "checkmark",
-                        tint: CatalogPalette.settingsIcon,
-                        fill: CatalogPalette.settingsIconFill,
+                        tint: CatalogKindStyle.of(CatalogSourceKind.book).accent,
+                        fill: CatalogPalette.tourAccent.opacity(0.16),
                         textKey: self.goodExampleKey
                     )
                 }
 
-                SettingsCardGroup(title: NSLocalizedString("entry_guide_steps_title", comment: "")) {
+                self.sectionTitle("entry_guide_steps_title")
+                    .padding(.top, 22)
+                self.card {
                     ForEach(Array(Self.stepKeys.enumerated()), id: \.offset) { index, key in
                         if index > 0 {
-                            SettingsRowSeparator(leadingInset: 52)
+                            SettingsRowSeparator(leadingInset: 54)
                         }
                         self.stepRow(number: index + 1, textKey: key)
                     }
                 }
-
-                Button {
-                    self.reportFinish(.continued)
-                    self.primaryAction()
-                } label: {
-                    Text(NSLocalizedString(self.primaryTitleKey, comment: ""))
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(CatalogPalette.onAction)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(CatalogPalette.addAction, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 20)
-                .padding(.top, 24)
             }
             .padding(.bottom, 24)
         }
         .background(CatalogPalette.pageBackground)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if let cancelAction: () -> Void = self.cancelAction {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("Cancel", comment: "")) {
-                        self.reportFinish(.cancelled)
-                        cancelAction()
-                    }
+        // 中文注释：主按钮固定在底部（裁定 4），内容在它下面滚；底栏页底色 90% + 毛玻璃。
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            self.primaryButton
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
+                .background {
+                    CatalogPalette.pageBackground.opacity(0.9)
+                        .background(.ultraThinMaterial)
+                        .ignoresSafeArea(edges: .bottom)
                 }
-            }
         }
+        // 中文注释：整页自绘，系统导航栏藏起来；「取消」画在上半段色块里。
+        .toolbar(.hidden, for: .navigationBar)
         .analyticsScreen(.entryGuide)
         .onAppear {
             self.hasReportedFinish = false
@@ -192,13 +181,110 @@ struct EntryPageGuideView: View {
         }
     }
 
+    // MARK: - 上半段墨青色块
+
+    /// 墨青色块：右上青绿光圈、首屏形态的「取消」、眉行、大标题、一句说明。
+    /// 中文注释：色块深浅同值，浅色页面上就是一块深色色块，与欢迎卡上半段同一种语言。
+    private var hero: some View {
+        ZStack(alignment: .topLeading) {
+            CatalogPalette.brandWaitingFill
+            GeometryReader { proxy in
+                Circle()
+                    .fill(RadialGradient(
+                        colors: [CatalogPalette.tourAccent.opacity(0.32), CatalogPalette.tourAccent.opacity(0)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 130
+                    ))
+                    .frame(width: 260, height: 260)
+                    .position(x: proxy.size.width + 70 - 130, y: -90 + 130)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                if let cancelAction: () -> Void = self.cancelAction {
+                    Button {
+                        self.reportFinish(.cancelled)
+                        cancelAction()
+                    } label: {
+                        Text(NSLocalizedString("Cancel", comment: ""))
+                            .font(.body)
+                            .foregroundStyle(CatalogPalette.immersiveText.opacity(0.82))
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    // 中文注释：回看形态没有取消，留出与首屏相近的顶部空白，标题不贴 sheet 顶边。
+                    Color.clear
+                        .frame(height: 36)
+                }
+                if self.showsTourEyebrow {
+                    HStack(spacing: 6) {
+                        Image(systemName: "triangle.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .rotationEffect(.degrees(180))
+                        Text(NSLocalizedString("entry_guide_tour_eyebrow", comment: "引导屏眉行：从新手引导走来"))
+                            .font(.caption2.weight(.bold))
+                            .tracking(1)
+                    }
+                    .foregroundStyle(CatalogPalette.tourAccent)
+                    .padding(.top, 4)
+                }
+                Text(NSLocalizedString("entry_guide_title", comment: ""))
+                    .font(.title.weight(.heavy))
+                    .foregroundStyle(CatalogPalette.immersiveText)
+                    .accessibilityAddTraits(.isHeader)
+                Text(NSLocalizedString("entry_guide_subtitle", comment: ""))
+                    .font(.subheadline)
+                    .foregroundStyle(CatalogPalette.immersiveEyebrow)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(EdgeInsets(top: 12, leading: 24, bottom: 24, trailing: 24))
+        }
+        .clipped()
+    }
+
+    /// 反例插画卡：她指着的那块卡片画的就是反例——几块区块拼起来、底部没有页码。
+    /// 中文注释：插画本身白底，卡固定白，深色下白卡就是它的画框（裁定 6）。
+    private var illustrationCard: some View {
+        Image("EntryGuideUnsupportedPage")
+            .resizable()
+            .scaledToFit()
+            .frame(height: 150)
+            .frame(maxWidth: .infinity)
+            .frame(height: 176)
+            .background(CatalogPalette.tourIllustrationCard, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .accessibilityHidden(true)
+    }
+
+    // MARK: - 三组卡片
+
+    private func sectionTitle(_ key: String) -> some View {
+        Text(NSLocalizedString(key, comment: ""))
+            .font(.footnote.weight(.bold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+    }
+
+    private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0, content: content)
+            .background(CatalogPalette.cardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                if self.colorScheme == .dark {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(CatalogPalette.onDarkFill, lineWidth: 1)
+                }
+            }
+            .padding(.horizontal, 20)
+    }
+
     private func requirementRow(
         systemImage: String,
         titleKey: String,
         detailKey: String
     ) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            self.iconTile(systemImage: systemImage, tint: CatalogPalette.settingsIcon, fill: CatalogPalette.settingsIconFill)
+            self.inkChip(systemImage: systemImage)
             VStack(alignment: .leading, spacing: 3) {
                 Text(NSLocalizedString(titleKey, comment: ""))
                     .font(.subheadline.weight(.semibold))
@@ -210,27 +296,16 @@ struct EntryPageGuideView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 
     private func exampleRow(systemImage: String, tint: Color, fill: Color, textKey: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            self.iconTile(systemImage: systemImage, tint: tint, fill: fill)
-            Text(NSLocalizedString(textKey, comment: ""))
-                .font(.subheadline)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-
-    private func stepRow(number: Int, textKey: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(verbatim: "\(number)")
-                .font(.footnote.weight(.bold))
-                .frame(width: 24, height: 24)
-                .background(CatalogPalette.fillBackground, in: Circle())
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 40, height: 40)
+                .background(fill, in: Circle())
                 .accessibilityHidden(true)
             Text(NSLocalizedString(textKey, comment: ""))
                 .font(.subheadline)
@@ -238,16 +313,87 @@ struct EntryPageGuideView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 11)
+        .padding(.vertical, 14)
     }
 
-    private func iconTile(systemImage: String, tint: Color, fill: Color) -> some View {
-        Image(systemName: systemImage)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(tint)
-            .frame(width: 32, height: 32)
-            .background(fill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .accessibilityHidden(true)
+    private func stepRow(number: Int, textKey: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(verbatim: "\(number)")
+                .font(.footnote.weight(.heavy))
+                .foregroundStyle(CatalogPalette.onAction)
+                .frame(width: 26, height: 26)
+                .background(CatalogPalette.spectrumVividGradient, in: Circle())
+                .accessibilityHidden(true)
+            Text(NSLocalizedString(textKey, comment: ""))
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+    }
+
+    /// 40pt 墨青圆 + 青绿线性符号 + 3pt 青绿 22% 光环，与新手引导气泡的图标同一做法。
+    private func inkChip(systemImage: String) -> some View {
+        ZStack {
+            Circle()
+                .fill(CatalogPalette.brandWaitingFill)
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(CatalogPalette.tourAccent)
+        }
+        .frame(width: 40, height: 40)
+        .overlay {
+            Circle()
+                .strokeBorder(CatalogPalette.tourAccent.opacity(0.22), lineWidth: 3)
+                .padding(-3)
+        }
+        .accessibilityHidden(true)
+    }
+
+    // MARK: - 主按钮
+
+    @ViewBuilder
+    private var primaryButton: some View {
+        if self.isFirstRunForm {
+            Button {
+                self.reportFinish(.continued)
+                self.primaryAction()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(NSLocalizedString(self.primaryTitleKey, comment: ""))
+                        .font(.headline)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 15, weight: .bold))
+                }
+                .foregroundStyle(CatalogPalette.onAction)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(CatalogPalette.spectrumVividGradient, in: Capsule(style: .continuous))
+                .contentShape(Capsule(style: .continuous))
+                .shadow(color: CatalogPalette.tourPrimaryShadow, radius: 13, y: 10)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button {
+                self.reportFinish(.continued)
+                self.primaryAction()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(NSLocalizedString(self.primaryTitleKey, comment: ""))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(CatalogPalette.tourOnButton)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(CatalogPalette.tourAccent)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(CatalogPalette.tourButtonFill, in: Capsule(style: .continuous))
+                .contentShape(Capsule(style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
     }
 }
 
@@ -266,6 +412,8 @@ struct EntryPageGuideFlowView: View {
 
     @AppStorage(EntryPageGuide.seenVersionKey) private var seenVersion: Int = 0
     @State private var didAcknowledge: Bool = false
+    /// 中文注释：从新手引导第 3 步走来的那一次，引导屏顶部多一行眉行；看过（点按钮或取消）就清掉。
+    @Environment(OnboardingTourStore.self) private var onboardingTour: OnboardingTourStore?
 
     var body: some View {
         if self.showsGuide {
@@ -274,8 +422,9 @@ struct EntryPageGuideFlowView: View {
                     sourceKind: self.sourceKind,
                     primaryTitleKey: "entry_guide_continue_button",
                     primaryAction: self.acknowledge,
-                    cancelAction: self.onFinished,
-                    analyticsEntry: .firstRun
+                    cancelAction: self.cancel,
+                    analyticsEntry: .firstRun,
+                    showsTourEyebrow: self.onboardingTour?.cameFromTour == true
                 )
             }
         } else {
@@ -296,7 +445,13 @@ struct EntryPageGuideFlowView: View {
     }
 
     private func acknowledge() {
+        self.onboardingTour?.clearCameFromTour()
         self.seenVersion = EntryPageGuide.currentVersion
         self.didAcknowledge = true
+    }
+
+    private func cancel() {
+        self.onboardingTour?.clearCameFromTour()
+        self.onFinished()
     }
 }
